@@ -23,3 +23,11 @@
 .judge-switch p { flex-basis: 100%; margin: 0; }
 .intake-source { margin: 10px 0 0; color: #526b62; }
 @media (max-width: 640px) { .judge-switch { margin: 0 12px 12px; padding: 12px; } }
+
+.promise{margin-top:16px;border:1px solid #c8dcd2;border-left:4px solid var(--teal);border-radius:13px;padding:17px 19px;background:#f0f6ef}
+.promise.overdue{border-color:#ead0c3;border-left-color:var(--coral);background:var(--coral-soft)}
+.promise-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.promise h3{font:20px Consolas,"Microsoft YaHei UI",monospace;color:var(--teal);margin-bottom:7px;overflow-wrap:anywhere}
+.promise.overdue h3{color:var(--coral)}
+.promise .small{color:var(--muted);font-size:12px}
+.promise .tiny{margin-top:7px}

@@ -37,6 +37,28 @@ type SafetyRule struct {
 	Note         string   `json:"note"`
 }
 
+// SLARule 是承诺时钟：把"什么时候到"从一句安慰变成一个有时间点、会到期、到期会主动开口的承诺。
+// demo_due_in_minutes 只影响沙箱演示节奏（路演现场几分钟就能看到"到期→主动触达"全过程），
+// 不影响真实性：承诺时长、文案与提醒口径全部写在规则文件里，代码不硬编码。
+type SLARule struct {
+	Enabled        bool   `json:"enabled"`
+	PromiseHours   int    `json:"promise_hours"`
+	DemoDueMinutes int    `json:"demo_due_in_minutes"`
+	SoonHours      int    `json:"soon_hours"`
+	PromiseText    string `json:"promise_text"`
+	SoonText       string `json:"soon_text"`
+	DueText        string `json:"due_text"`
+	Note           string `json:"note"`
+}
+
+// promiseMinutes 承诺时长（分钟）。演示开关优先，未开则用真实小时数。
+func (rules *RuleSet) promiseMinutes() int {
+	if rules.SLA.DemoDueMinutes > 0 {
+		return rules.SLA.DemoDueMinutes
+	}
+	return rules.SLA.PromiseHours * 60
+}
+
 type RuleSet struct {
 	Version, Note  string
 	Intents        []IntentRule
@@ -48,6 +70,7 @@ type RuleSet struct {
 	Eligibility        EligibilityRule
 	Safety             SafetyRule
 	EvidenceTTLMinutes int      `json:"evidence_ttl_minutes"`
+	SLA                SLARule  `json:"sla"`
 	WorkflowSteps      []string `json:"workflow_steps"`
 	StopConditions     []string `json:"stop_conditions"`
 }
@@ -116,6 +139,36 @@ func (rules *RuleSet) validate() error {
 	}
 	if rules.EvidenceTTLMinutes <= 0 {
 		return errors.New("evidence_ttl_minutes 必须为正")
+	}
+	if err := rules.SLA.validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validate：承诺时钟一旦启用，时长与三种文案就不能为空——
+// 否则系统会在没有承诺口径的情况下"主动"开口，那比不说话更糟。
+func (sla *SLARule) validate() error {
+	if !sla.Enabled {
+		return nil
+	}
+	if sla.PromiseHours <= 0 {
+		return errors.New("sla.promise_hours 必须为正")
+	}
+	if sla.DemoDueMinutes < 0 {
+		return errors.New("sla.demo_due_in_minutes 不能为负")
+	}
+	if sla.SoonHours < 0 {
+		return errors.New("sla.soon_hours 不能为负")
+	}
+	if strings.TrimSpace(sla.PromiseText) == "" || !strings.Contains(sla.PromiseText, "{due}") {
+		return errors.New("sla.promise_text 不能为空，且必须包含 {due} 占位符")
+	}
+	if strings.TrimSpace(sla.DueText) == "" {
+		return errors.New("sla.due_text 不能为空：到期必须说清《未到账》，不能暗示已到账")
+	}
+	if strings.TrimSpace(sla.SoonText) == "" {
+		return errors.New("sla.soon_text 不能为空")
 	}
 	return nil
 }

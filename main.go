@@ -177,6 +177,11 @@ func main() {
 		rules.Version, len(rules.Intents), rules.Safety.Enabled, rules.EvidenceTTLMinutes, len(rules.WorkflowSteps), len(rules.StopConditions))
 	log.Printf("判定账本 %s：累计 %d 条 · 成功 %d 条 · 时延中位 %dms / p95 %dms",
 		questionSetVersion(), ledger.Total, ledger.OK, ledger.MedianMS, ledger.P95MS)
+	if rules.SLA.Enabled {
+		log.Printf("承诺时钟：承诺 %s · 临近提前 %d 小时提醒", promiseLabel(rules.promiseMinutes()), rules.SLA.SoonHours)
+	} else {
+		log.Printf("承诺时钟：已关闭（规则文件 sla.enabled=false）")
+	}
 	if err = server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}

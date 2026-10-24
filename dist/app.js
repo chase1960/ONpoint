@@ -169,6 +169,30 @@ function artifactHTML(entry, change = null) {
   const taskIDs = entry ? tasksFor(entry).map(task => task.ID) : [];
   return '<div class="artifact-chain" aria-label="方案与履约产物来源链"><span>方案 ' + esc(change?.SourcePlan || planIDs.join(' / ') || entry?.ProposalID || '未形成') + '</span><i>→</i>' + (entry ? '<button type="button" data-action="open_customer" data-id="' + esc(entry.ID) + '" ' + (busy ? 'disabled' : '') + '>' + esc(entry.ID) + '</button>' : '<span>' + esc(change?.Source || '未记录案件') + '</span>') + '<i>→</i><span>' + (entry?.Selected ? '客户已确认' : '等待客户确认') + '</span><i>→</i><span>' + esc(change?.SourceTask || entry?.Receipt || taskIDs.join(' / ') || '尚无追踪回执') + '</span>' + (change ? '<i>→</i><span>' + esc(change.ID) + '</span><i>→</i><span>' + esc(change.Procedure?.ID || '未生成流程') + ' / ' + esc(typeof change.Snapshot === 'object' ? change.Snapshot?.ID || '已记录快照' : change.Snapshot || '未生成快照') + '</span>' : '') + '</div>';
 }
+// 承诺时钟：把"什么时候到"显示成一个会走的时间，而不是一句安慰。
+// 超期只说"未到账、已主动同步"，绝不替支付状态宣布到账。
+function durationText(ms) {
+  const minutes = Math.max(1, Math.round(Math.abs(ms) / 60000));
+  if (minutes < 60) return minutes + ' 分钟';
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return hours + ' 小时';
+  return Math.round(hours / 24) + ' 天';
+}
+function promiseTask(entry) {
+  if (!entry) return null;
+  const tasks = tasksFor(entry);
+  return tasks.find(task => task.DueAt) || (entry.Receipt ? database.Tasks?.[entry.Receipt] : null) || null;
+}
+function promiseHTML(entry) {
+  const task = promiseTask(entry);
+  if (!task || !task.DueAt) return '';
+  const due = new Date(task.DueAt).getTime();
+  if (Number.isNaN(due)) return '';
+  const remaining = due - Date.now();
+  const overdue = remaining <= 0;
+  const when = new Date(task.DueAt).toLocaleString('zh-CN', { hour12: false });
+  return '<section class="promise' + (overdue ? ' overdue' : '') + '" aria-label="承诺时钟"><div class="promise-head"><p class="eyebrow">PROMISE CLOCK / 承诺时钟</p>' + badge(overdue ? '已过承诺时间' : '承诺进行中', overdue ? 'coral' : 'teal') + '</div><h3>' + esc(when) + '</h3><p class="small">' + (overdue ? '已超期 ' + durationText(remaining) + '，系统已主动同步；当前仍为处理中，未到账。' : '距承诺到账还有 ' + durationText(remaining) + '。到点若未到账，系统会主动来找你，不用你追问。') + '</p><p class="tiny muted">' + esc(task.ID || '任务未记录') + ' · 任务提交不等于资金到账</p></section>';
+}
 function receiptHTML(entry) {
   const tasks = tasksFor(entry);
   if (!entry.Receipt && !tasks.length) return '';
@@ -186,7 +210,7 @@ function caseActionsHTML(entry) {
   return '<div class="button-row">' + button('需要人工协助', 'handoff', '', 'quiet') + '</div>';
 }
 function caseHTML(entry) {
-return '<section class="panel"><header class="case-header"><div class="section-head"><p class="eyebrow">CUSTOMER CASE / ' + esc(entry.ID) + '</p>' + badge(states[entry.State] || entry.State, ['handoff', 'human'].includes(entry.State) ? 'coral' : 'teal') + '</div><h1>' + esc(orderFor(entry)?.Route || '一次售后诉求，一条完整证据链') + '</h1><p class="tiny muted">' + esc(entry.OrderID || '不关联订单') + ' · ' + esc(entry.Intent || '待识别诉求') + '</p>' + versionHTML(entry) + presentationControlsHTML(entry) + '</header><div class="messages" aria-label="客户与服务对话">' + (messagesHTML(entry) || '<p class="empty-mini">请发送客户的实际诉求。</p>') + '</div><div class="case-content">' + plansHTML(entry) + receiptHTML(entry) + '<div class="human-instruction">' + caseActionsHTML(entry) + '</div></div>' + composerHTML(entry) + '</section>';
+return '<section class="panel"><header class="case-header"><div class="section-head"><p class="eyebrow">CUSTOMER CASE / ' + esc(entry.ID) + '</p>' + badge(states[entry.State] || entry.State, ['handoff', 'human'].includes(entry.State) ? 'coral' : 'teal') + '</div><h1>' + esc(orderFor(entry)?.Route || '一次售后诉求，一条完整证据链') + '</h1><p class="tiny muted">' + esc(entry.OrderID || '不关联订单') + ' · ' + esc(entry.Intent || '待识别诉求') + '</p>' + versionHTML(entry) + presentationControlsHTML(entry) + '</header><div class="messages" aria-label="客户与服务对话">' + (messagesHTML(entry) || '<p class="empty-mini">请发送客户的实际诉求。</p>') + '</div><div class="case-content">' + plansHTML(entry) + promiseHTML(entry) + receiptHTML(entry) + '<div class="human-instruction">' + caseActionsHTML(entry) + '</div></div>' + composerHTML(entry) + '</section>';
 }
 function traceHTML(entry) {
   const evidence = rows(entry?.Evidence);
@@ -417,3 +441,25 @@ root.addEventListener('click', async event => {
 });
 window.addEventListener('hashchange', () => { view = Object.hasOwn(tabs, location.hash.slice(1)) ? location.hash.slice(1) : 'agent'; render(); });
 perform(null);
+
+// 承诺时钟的静默同步：不打断操作，只让倒计时继续走，并在到期时把系统的主动同步带回来。
+// 拉取的是同一个只读状态接口，不产生任何业务动作。
+async function syncPromiseClock() {
+  if (busy || !connected || !selectedCase) return;
+  const before = (database.Cases?.[selectedCase]?.Messages || []).length;
+  try {
+    const result = await requestAPI(null);
+    const fresh = result?.Cases?.[selectedCase];
+    if (!fresh) return;
+    const added = (fresh.Messages || []).slice(before);
+    if (added.some(item => item.Role !== 'user')) {
+      notify('承诺时钟：系统主动同步了一条进度更新');
+      render();
+      return;
+    }
+    if (promiseTask(fresh)?.DueAt) render();
+  } catch (error) {
+    connected = false;
+  }
+}
+setInterval(() => { void syncPromiseClock(); }, 20000);

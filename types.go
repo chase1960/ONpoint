@@ -64,7 +64,13 @@ type Proposal struct {
 	ID, CaseID, OrderID, PolicyVersion, Snapshot, ProcedureID, Status, CreatedAt, ConfirmedAt, Receipt string
 	Plan                                                                                               Plan
 }
-type Task struct{ ID, CaseID, OrderID, Key, State, At, Snapshot, ProcedureID, Consent, Actor, ProposalID string }
+// Task 的 DueAt / PromiseMinutes 是承诺时钟（SLA）：任务一旦建立，系统就对"什么时候到"给出可核验的时间点。
+// 到期由系统主动开口，不等用户来问——这正是"状态可见"里缺的那一半。
+type Task struct {
+	ID, CaseID, OrderID, Key, State, At, Snapshot, ProcedureID, Consent, Actor, ProposalID string
+	DueAt                                                                                   string
+	PromiseMinutes                                                                          int
+}
 type ReplayRow struct {
 	Name, Before, After, ExpectedBefore, ExpectedAfter string
 	Passed                                             bool

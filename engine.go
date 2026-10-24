@@ -457,6 +457,11 @@ func (app *App) confirm(record *Case, input Request) error {
 			}
 			if task == nil {
 				task = &Task{ID: uniqueID("TR-"), CaseID: record.ID, OrderID: record.OrderID, Key: key, State: "SUBMITTED", At: stamp(), Snapshot: record.Snapshot, ProcedureID: plan.ProcedureID, Consent: record.Consent, Actor: record.PlanActor, ProposalID: record.ProposalID}
+				// 承诺时钟随任务一起落库：有了"什么时候到"，用户才不必反复来问。
+				if activeRules.SLA.Enabled {
+					task.PromiseMinutes = activeRules.promiseMinutes()
+					task.DueAt = time.Now().UTC().Add(time.Duration(task.PromiseMinutes) * time.Minute).Format(time.RFC3339Nano)
+				}
 				app.store.Tasks[task.ID] = task
 			}
 			record.Receipt = task.ID
@@ -471,7 +476,14 @@ func (app *App) confirm(record *Case, input Request) error {
 			}
 			record.step(step)
 			record.Facts["追踪任务"] = record.Receipt
-			record.say(actorRole(record.PlanActor), "追踪请求已提交，沙箱任务号 "+record.Receipt+"。当前支付退款仍为处理中；任务提交不等于退款到账。")
+			message := "追踪请求已提交，沙箱任务号 " + record.Receipt + "。当前支付退款仍为处理中；任务提交不等于退款到账。"
+			if task := app.store.Tasks[record.Receipt]; task != nil && task.DueAt != "" {
+				when := humanDue(task.DueAt)
+				record.Facts["承诺到账时间"] = when
+				record.event("promise_set", "承诺时钟已启动："+when+" 前到账（"+promiseLabel(task.PromiseMinutes)+"）")
+				message += " " + strings.ReplaceAll(activeRules.SLA.PromiseText, "{due}", when)
+			}
+			record.say(actorRole(record.PlanActor), message)
 		case "ask_result":
 			record.step(step)
 			record.State = "waiting"
@@ -480,6 +492,62 @@ func (app *App) confirm(record *Case, input Request) error {
 	}
 	record.HumanHandled = record.PlanActor == "human"
 	return nil
+}
+
+// checkPromise 是承诺时钟的检查点：临近提醒一次，到期主动触达一次。
+// 「状态可见」的另一半不是把状态画出来，而是到点了系统先开口——
+// 但开口只能说"仍为处理中、未到账"，绝不能代替支付状态宣布到账。
+func (app *App) checkPromise(record *Case) {
+	if !activeRules.SLA.Enabled || record.Receipt == "" || record.State == "resolved" {
+		return
+	}
+	task := app.store.Tasks[record.Receipt]
+	if task == nil || task.DueAt == "" {
+		return
+	}
+	due, err := time.Parse(time.RFC3339Nano, task.DueAt)
+	if err != nil {
+		return
+	}
+	seen := func(kind string) bool {
+		for _, item := range record.Events {
+			if item.Kind == kind {
+				return true
+			}
+		}
+		return false
+	}
+	if remaining := time.Until(due); remaining <= 0 {
+		if seen("promise_due") {
+			return
+		}
+		record.event("promise_due", "承诺时间已到：支付退款仍为处理中，未到账；系统主动同步，不静默等待")
+		record.say("assistant", activeRules.SLA.DueText)
+		return
+	} else if activeRules.SLA.SoonHours > 0 && remaining <= time.Duration(activeRules.SLA.SoonHours)*time.Hour && !seen("promise_soon") {
+		record.event("promise_soon", "临近承诺时间：仍为处理中，系统提前主动同步")
+		record.say("assistant", activeRules.SLA.SoonText)
+	}
+}
+
+// humanDue 把到期时间渲染成人能读的样子；解析失败就原样返回，不猜。
+func humanDue(value string) string {
+	when, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return value
+	}
+	return when.Local().Format("2006-01-02 15:04")
+}
+
+// promiseLabel 承诺时长的人读形式：按天/小时/分钟，不做四舍五入的"大约"。
+func promiseLabel(minutes int) string {
+	if minutes >= 1440 && minutes%1440 == 0 {
+		return fmt.Sprintf("%d 天", minutes/1440)
+	}
+	if minutes >= 60 && minutes%60 == 0 {
+		return fmt.Sprintf("%d 小时", minutes/60)
+	}
+	return fmt.Sprintf("%d 分钟", minutes)
 }
 
 func (app *App) apply(input Request) error {
@@ -508,6 +576,8 @@ func (app *App) apply(input Request) error {
 	if record == nil {
 		return errors.New("案件不存在，请新建案件")
 	}
+	// 每次交互都顺带过一遍承诺时钟：到点了系统先说，不等用户追问。
+	app.checkPromise(record)
 	switch input.Action {
 	case "message":
 		text := strings.TrimSpace(input.Text)
