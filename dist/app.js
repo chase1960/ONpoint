@@ -17,6 +17,7 @@ let pendingOrder = 'DEMO-RAIL-001';
 let pendingSample = null;
 let reuseNotice = false;
 let humanText = '';
+let releaseText = '';
 const noteText = {};
 const faultChoice = {};
 const stepLabels = { query_order: '核验退票记录', query_refund_trace: '核验支付轨迹', explain_status: '说明当前进度', request_confirmation: '等待你确认', create_tracking: '提交追踪请求', show_receipt: '提供任务回执', ask_result: '确认本次处理结果' };
@@ -183,6 +184,14 @@ function promiseTask(entry) {
   const tasks = tasksFor(entry);
   return tasks.find(task => task.DueAt) || (entry.Receipt ? database.Tasks?.[entry.Receipt] : null) || null;
 }
+// safetyHoldHTML 把持续安全阻断画出来：阻断看不见，就等于阻断不存在。
+// 解除只能由已接手的坐席填依据并提交，按钮就长在这里。
+function safetyHoldHTML(entry) {
+  const hold = entry.SafetyHold;
+  if (!hold) return '';
+  if (hold.ReleasedAt) return '<div class="promise"><h3>阻断已解除</h3><p class="small">依据：' + esc(hold.ReleaseNote || '') + ' · ' + esc(hold.ReleasedBy || '') + ' · ' + esc(hold.ReleasedAt || '') + '</p><p class="tiny muted">解除已留痕，不代表支付状态改变。</p></div>';
+  return '<div class="promise overdue"><div class="promise-head"><h3>安全阻断生效中</h3><span class="small">来源 ' + esc(hold.Source || '') + '</span></div><p class="small">' + esc(hold.Reason || '') + '</p><p class="tiny muted">人工接手不解除，用户改口也不解除；只能由坐席填写依据显式解除，解除留痕且不代表支付状态改变。</p>' + (entry.Owner === 'human' ? '<form id="release-form" class="human-form"><label for="release-text"><span>解除依据（不少于 6 字，留痕备查）</span><textarea id="release-text" maxlength="500" required></textarea></label><div class="button-row"><button class="secondary" type="submit">显式解除阻断</button></div></form>' : '') + '</div>';
+}
 function promiseHTML(entry) {
   const task = promiseTask(entry);
   if (!task || !task.DueAt) return '';
@@ -210,7 +219,7 @@ function caseActionsHTML(entry) {
   return '<div class="button-row">' + button('需要人工协助', 'handoff', '', 'quiet') + '</div>';
 }
 function caseHTML(entry) {
-return '<section class="panel"><header class="case-header"><div class="section-head"><p class="eyebrow">CUSTOMER CASE / ' + esc(entry.ID) + '</p>' + badge(states[entry.State] || entry.State, ['handoff', 'human'].includes(entry.State) ? 'coral' : 'teal') + '</div><h1>' + esc(orderFor(entry)?.Route || '一次售后诉求，一条完整证据链') + '</h1><p class="tiny muted">' + esc(entry.OrderID || '不关联订单') + ' · ' + esc(entry.Intent || '待识别诉求') + '</p>' + versionHTML(entry) + presentationControlsHTML(entry) + '</header><div class="messages" aria-label="客户与服务对话">' + (messagesHTML(entry) || '<p class="empty-mini">请发送客户的实际诉求。</p>') + '</div><div class="case-content">' + plansHTML(entry) + promiseHTML(entry) + receiptHTML(entry) + '<div class="human-instruction">' + caseActionsHTML(entry) + '</div></div>' + composerHTML(entry) + '</section>';
+return '<section class="panel"><header class="case-header"><div class="section-head"><p class="eyebrow">CUSTOMER CASE / ' + esc(entry.ID) + '</p>' + badge(states[entry.State] || entry.State, ['handoff', 'human'].includes(entry.State) ? 'coral' : 'teal') + '</div><h1>' + esc(orderFor(entry)?.Route || '一次售后诉求，一条完整证据链') + '</h1><p class="tiny muted">' + esc(entry.OrderID || '不关联订单') + ' · ' + esc(entry.Intent || '待识别诉求') + '</p>' + versionHTML(entry) + presentationControlsHTML(entry) + '</header><div class="messages" aria-label="客户与服务对话">' + (messagesHTML(entry) || '<p class="empty-mini">请发送客户的实际诉求。</p>') + '</div><div class="case-content">' + safetyHoldHTML(entry) + plansHTML(entry) + promiseHTML(entry) + receiptHTML(entry) + '<div class="human-instruction">' + caseActionsHTML(entry) + '</div></div>' + composerHTML(entry) + '</section>';
 }
 function traceHTML(entry) {
   const evidence = rows(entry?.Evidence);
@@ -256,7 +265,7 @@ function agentHTML() {
 
 function humanHTML() {
   const entry = record();
-  return '<main id="main" class="module"><header class="module-heading"><div><p class="eyebrow">SAME CASE, NO REPEATED QUESTIONS</p><h1>人工接着处理，不从头问起。</h1><p class="muted small">已有事实、客户方案与授权链完整移交。坐席同样不能绕过政策和客户确认。</p></div></header><div class="human-layout"><aside class="panel human-queue"><div class="section-head"><h2>案件接手队列</h2></div><div class="case-list">' + (allCases().map(item => caseItem(item)).join('') || '<p class="empty-mini">先在客户案件发送第一条退款进度请求。</p>') + '</div></aside>' + (!entry ? '<section class="panel empty-state"><h2>选择案件，继续处理</h2><p>不是复制一段聊天给人工，而是带着订单、证据、尝试记录接着办理。</p>' + button('从客户诉求开始', 'new', '', 'primary') + '</section>' : '<section class="panel human-detail"><div class="human-top"><div><p class="eyebrow">' + esc(entry.ID) + '</p><h2>' + esc(entry.OrderID || '尚未提供订单') + '</h2></div>' + badge(states[entry.State], 'teal') + '</div>' + versionHTML(entry) + '<p class="source-copy">交接原因：' + esc(entry.Decision || '无') + '<br>客户原始诉求：' + esc(rows(entry.Messages).find(item => item.Role === 'user')?.Text || '未记录') + '</p>' + artifactHTML(entry) + '<div class="human-transcript">' + messagesHTML(entry) + '</div><div class="button-row">' + (entry.State === 'handoff' ? button('接手同一案件', 'accept', '', 'primary') : '') + (entry.State === 'human' && !entry.Receipt ? button('核验并形成追踪方案', 'human_prepare', '', 'primary') : '') + button('查看客户方案与证据', 'open_customer', 'data-id="' + esc(entry.ID) + '"') + '</div><p class="source-copy">先查询退款轨迹、核验适用条件，形成客户可见的方案；不会通过坐席按钮直接创建任务。</p>' + plansHTML(entry, true) + receiptHTML(entry) + (entry.State === 'human' ? '<form id="human-form" class="human-form"><label for="human-text"><span>人工补充说明（文字不等于工具执行）</span><textarea id="human-text" maxlength="2000" required ' + (busy ? 'disabled' : '') + '>' + esc(humanText) + '</textarea></label><div class="button-row"><button class="secondary" type="submit" ' + (busy ? 'disabled' : '') + '>回复到同一案件</button></div></form>' : '') + (entry.State === 'resolved' && entry.HumanHandled ? '<div class="notice"><h3>已取得用户结果确认</h3><p>这次支持请求完成，支付状态仍未改写。</p><div class="button-row">' + button('从本案起草候选流程', 'draft', '', 'primary') + '</div></div>' : '') + '<details class="mini-detail"><summary>查看实际操作与事件</summary>' + list(entry.ActualSteps) + eventsHTML(entry.Events) + '</details></section>') + '</div></main>';
+  return '<main id="main" class="module"><header class="module-heading"><div><p class="eyebrow">SAME CASE, NO REPEATED QUESTIONS</p><h1>人工接着处理，不从头问起。</h1><p class="muted small">已有事实、客户方案与授权链完整移交。坐席同样不能绕过政策和客户确认。</p></div></header><div class="human-layout"><aside class="panel human-queue"><div class="section-head"><h2>案件接手队列</h2></div><div class="case-list">' + (allCases().map(item => caseItem(item)).join('') || '<p class="empty-mini">先在客户案件发送第一条退款进度请求。</p>') + '</div></aside>' + (!entry ? '<section class="panel empty-state"><h2>选择案件，继续处理</h2><p>不是复制一段聊天给人工，而是带着订单、证据、尝试记录接着办理。</p>' + button('从客户诉求开始', 'new', '', 'primary') + '</section>' : '<section class="panel human-detail"><div class="human-top"><div><p class="eyebrow">' + esc(entry.ID) + '</p><h2>' + esc(entry.OrderID || '尚未提供订单') + '</h2></div>' + badge(states[entry.State], 'teal') + '</div>' + versionHTML(entry) + '<p class="source-copy">交接原因：' + esc(entry.Decision || '无') + '<br>客户原始诉求：' + esc(rows(entry.Messages).find(item => item.Role === 'user')?.Text || '未记录') + '</p>' + artifactHTML(entry) + '<div class="human-transcript">' + messagesHTML(entry) + '</div><div class="button-row">' + (entry.State === 'handoff' ? button('接手同一案件', 'accept', '', 'primary') : '') + (entry.State === 'human' && !entry.Receipt ? button('核验并形成追踪方案', 'human_prepare', '', 'primary') : '') + button('查看客户方案与证据', 'open_customer', 'data-id="' + esc(entry.ID) + '"') + '</div><p class="source-copy">先查询退款轨迹、核验适用条件，形成客户可见的方案；不会通过坐席按钮直接创建任务。</p>' + safetyHoldHTML(entry) + plansHTML(entry, true) + receiptHTML(entry) + (entry.State === 'human' ? '<form id="human-form" class="human-form"><label for="human-text"><span>人工补充说明（文字不等于工具执行）</span><textarea id="human-text" maxlength="2000" required ' + (busy ? 'disabled' : '') + '>' + esc(humanText) + '</textarea></label><div class="button-row"><button class="secondary" type="submit" ' + (busy ? 'disabled' : '') + '>回复到同一案件</button></div></form>' : '') + (entry.State === 'resolved' && entry.HumanHandled ? '<div class="notice"><h3>已取得用户结果确认</h3><p>这次支持请求完成，支付状态仍未改写。</p><div class="button-row">' + button('从本案起草候选流程', 'draft', '', 'primary') + '</div></div>' : '') + '<details class="mini-detail"><summary>查看实际操作与事件</summary>' + list(entry.ActualSteps) + eventsHTML(entry.Events) + '</details></section>') + '</div></main>';
 }
 
 function judgmentsHTML(observations) {
@@ -398,6 +407,7 @@ confirmDialog.addEventListener('click', async event => {
 root.addEventListener('input', event => {
   if (event.target.id === 'message-text') draftText = event.target.value;
   if (event.target.id === 'human-text') humanText = event.target.value;
+  if (event.target.id === 'release-text') releaseText = event.target.value;
   if (event.target.id === 'change-note' && changeRecord()) noteText[changeRecord().ID] = event.target.value;
 });
 root.addEventListener('change', event => {
@@ -411,6 +421,7 @@ root.addEventListener('submit', async event => {
   event.preventDefault();
   if (event.target.id === 'message-form') return sendMessage();
   if (event.target.id === 'human-form') return perform({ Action: 'human_reply', CaseID: selectedCase, Text: humanText }, () => { humanText = ''; });
+  if (event.target.id === 'release-form') return perform({ Action: 'release_hold', CaseID: selectedCase, Text: releaseText }, () => { releaseText = ''; });
   if (event.target.id === 'note-form') return perform({ Action: 'change_edit', ChangeID: changeRecord().ID, Text: noteText[changeRecord().ID] ?? changeRecord().Note });
 });
 root.addEventListener('click', async event => {

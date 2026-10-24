@@ -41,7 +41,19 @@ type Plan struct {
 	ID, ArtifactID, Title, Description, Clause, ProcedureID, Token string
 	Steps, Benefits, Notes                                         []string
 }
+// SafetyHold 是持续安全阻断。命中一次就挂在案件上，不随后续表达、人工接手或流程回放消失。
+// 解除只能由独立动作完成并留痕——「人工接手不等于解除风险」这句话必须有数据结构兜底，
+// 否则它只是一句写在文档里的承诺。
+type SafetyHold struct {
+	Reason, Source, At                        string
+	ReleasedBy, ReleasedAt, ReleaseNote       string
+}
+
+// released 判定阻断是否还在生效。nil 或已填解除时间都视为不阻断。
+func (hold *SafetyHold) released() bool { return hold == nil || hold.ReleasedAt != "" }
+
 type Case struct {
+	SafetyHold                                                                              *SafetyHold
 	LLMReplies                                                                              []LLMReply
 	Intake                                                                                  *IntakeDecision
 	Route                                                                                   string

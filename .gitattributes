@@ -1,0 +1,3 @@
+# dist/ 是手写源码（本项目没有构建步骤），但 Linguist 默认把 dist 当构建产物排除，
+# 于是 GitHub 语言条只剩下 Go。这里显式声明它参与统计。
+dist/** linguist-vendored=false

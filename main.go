@@ -178,9 +178,11 @@ func main() {
 	log.Printf("判定账本 %s：累计 %d 条 · 成功 %d 条 · 时延中位 %dms / p95 %dms",
 		questionSetVersion(), ledger.Total, ledger.OK, ledger.MedianMS, ledger.P95MS)
 	if rules.SLA.Enabled {
-		log.Printf("承诺时钟：承诺 %s · 临近提前 %d 小时提醒", promiseLabel(rules.promiseMinutes()), rules.SLA.SoonHours)
+		log.Printf("反馈时钟：跟进时限 %s · 临近提前 %d 小时提醒 · 后台每 %v 扫描一次（无需用户操作）",
+			promiseLabel(rules.promiseMinutes()), rules.SLA.SoonHours, promiseScanInterval)
+		app.startPromiseScan(promiseScanInterval)
 	} else {
-		log.Printf("承诺时钟：已关闭（规则文件 sla.enabled=false）")
+		log.Printf("反馈时钟：已关闭（规则文件 sla.enabled=false）")
 	}
 	if err = server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)

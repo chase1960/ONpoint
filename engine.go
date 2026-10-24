@@ -96,7 +96,21 @@ func (app *App) query(record *Case) bool {
 	return true
 }
 
+// setSafetyHold 落下持续阻断。写上去之后，只有 releaseSafetyHold 能清掉：
+// 人工接手不清、用户改口不清、换一条普通表达也不清。
+func (app *App) setSafetyHold(record *Case, reason, source string) {
+	if !record.SafetyHold.released() {
+		return
+	}
+	record.SafetyHold = &SafetyHold{Reason: reason, Source: source, At: stamp()}
+	record.Risk = reason
+	record.event("safety_hold_set", "持续安全阻断生效（来源 "+source+"）："+reason+"；人工接手不解除，只能显式解除并留痕")
+}
+
 func (app *App) eligible(record *Case) error {
+	if !record.SafetyHold.released() {
+		return errors.New("存在未解除的安全阻断：" + record.SafetyHold.Reason + "；需先由坐席显式解除并写明依据")
+	}
 	if record.Risk != "" {
 		return errors.New("风险未解除，不能套用普通流程：" + record.Risk)
 	}
@@ -123,6 +137,7 @@ func (app *App) assess(record *Case, text string) {
 	if hit, reason := activeRules.safetyCheck(text); hit {
 		record.Facts["安全闸"] = reason
 		record.event("safety_gate", reason+"；安全判断只加闸，不放行")
+		app.setSafetyHold(record, reason, "rule_safety_gate")
 		app.handoff(record, reason)
 		return
 	}
@@ -194,6 +209,10 @@ func (app *App) assess(record *Case, text string) {
 			}
 			if mentioned := orderPattern.FindString(text); mentioned != "" {
 				record.OrderID = strings.ToUpper(mentioned)
+			}
+			// JEV 判出的安全信号要变成持续阻断，否则转人工之后照样能被 accept → confirm 绕过。
+			if record.Intake != nil && record.Intake.Reason == "model_safety_signal" {
+				app.setSafetyHold(record, "JEV 安全信号判定为风险表达（来源 jev_safety_signal）", "jev_safety_signal")
 			}
 		} else {
 			record.Risk = intent
@@ -308,6 +327,9 @@ func (app *App) assess(record *Case, text string) {
 }
 
 func (app *App) requestTracking(record *Case) error {
+	if !record.SafetyHold.released() {
+		return errors.New("存在未解除的安全阻断：" + record.SafetyHold.Reason + "；不能申请追踪")
+	}
 	if record.State != "answered" || record.Owner == "human" || record.Risk != "" || record.Receipt != "" || record.Intent != "refund_progress" {
 		return errors.New("只有已完成的退款进度咨询可以申请追踪；人工案件请由坐席继续处理")
 	}
@@ -395,6 +417,10 @@ func (app *App) confirm(record *Case, input Request) error {
 	if !input.Confirmed {
 		return errors.New("需要用户明确确认，聊天内容不能代替授权")
 	}
+	// 执行门与资格门共用同一道阻断：人工接手、套模板、换按钮都不能绕过安全闸。
+	if !record.SafetyHold.released() {
+		return errors.New("存在未解除的安全阻断：" + record.SafetyHold.Reason + "；确认不能越过安全阻断")
+	}
 	if record.Receipt != "" {
 		if input.PlanID != record.Selected || input.PlanToken != record.Consent {
 			return errors.New("不能将旧确认用于其他方案")
@@ -479,8 +505,8 @@ func (app *App) confirm(record *Case, input Request) error {
 			message := "追踪请求已提交，沙箱任务号 " + record.Receipt + "。当前支付退款仍为处理中；任务提交不等于退款到账。"
 			if task := app.store.Tasks[record.Receipt]; task != nil && task.DueAt != "" {
 				when := humanDue(task.DueAt)
-				record.Facts["承诺到账时间"] = when
-				record.event("promise_set", "承诺时钟已启动："+when+" 前到账（"+promiseLabel(task.PromiseMinutes)+"）")
+				record.Facts["下次反馈时间"] = when
+				record.event("promise_set", "反馈时钟已启动："+when+" 前主动同步一次进度（"+promiseLabel(task.PromiseMinutes)+"）；这是服务跟进时限，不是渠道到账期限")
 				message += " " + strings.ReplaceAll(activeRules.SLA.PromiseText, "{due}", when)
 			}
 			record.say(actorRole(record.PlanActor), message)
@@ -599,6 +625,27 @@ func (app *App) apply(input Request) error {
 			record.Risk = "用户反馈仍未解决，不再复用同一流程"
 		}
 		app.handoff(record, "用户要求人工继续接手")
+	case "release_hold":
+		// 解除必须是一个独立动作：要人工身份、要写明依据、要留痕。
+		// 不能让"接手案件"顺手把风险清掉，也不能让用户说一句"没事了"就解除。
+		if record.Owner != "human" {
+			return errors.New("安全阻断只能由已接手的坐席显式解除")
+		}
+		if record.SafetyHold.released() {
+			return errors.New("当前案件没有生效中的安全阻断")
+		}
+		note := strings.TrimSpace(input.Text)
+		if len([]rune(note)) < 6 {
+			return errors.New("解除必须写明依据（不少于 6 字），留痕备查")
+		}
+		record.SafetyHold.ReleasedBy = "human"
+		record.SafetyHold.ReleasedAt = stamp()
+		record.SafetyHold.ReleaseNote = note
+		if record.Risk == record.SafetyHold.Reason {
+			record.Risk = ""
+		}
+		record.event("safety_hold_released", "人工显式解除阻断："+note+"；解除已留痕，不代表支付状态改变")
+		record.say("agent", "已按你填写的依据解除本次安全阻断（"+note+"）。这是人工动作，已留痕；支付退款状态本身没有被改写，仍是处理中。")
 	case "accept":
 		if record.State != "handoff" {
 			return errors.New("仅能接手待人工案件")

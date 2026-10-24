@@ -141,6 +141,13 @@ func decideIntake(text, mode, reason string, observation *JEVObservation) Intake
 		case mode == "assist" && rulePriority(ruleIntent):
 			decision.Reason = "rule_priority"
 		case mode == "assist":
+			// 安全信号优先于业务分流：模型判出风险就转人工，这是"只加闸"真正有消费者的地方。
+			// 只消费「已采用且明确判为 risk」的结果——判不出来是 fail-closed 的观察值，
+			// 不能因为拿不准就把所有请求都推给人工，那不叫加闸，叫瘫痪。
+			if answer, exists := observation.Answers["safety_signal"]; exists && observation.adopted("safety_signal") && answer.Choice == "risk" {
+				decision.Source, decision.Intent, decision.Reason = "jev", "human", "model_safety_signal"
+				return decision
+			}
 			human := observation.Answers["human_requested"]
 			refund := observation.Answers["refund_progress"]
 			switch {

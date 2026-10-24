@@ -164,6 +164,14 @@ func (sla *SLARule) validate() error {
 	if strings.TrimSpace(sla.PromiseText) == "" || !strings.Contains(sla.PromiseText, "{due}") {
 		return errors.New("sla.promise_text 不能为空，且必须包含 {due} 占位符")
 	}
+	// 系统只能承诺自己的动作（什么时候再反馈一次），不能替渠道承诺钱什么时候到。
+	// 合成订单里没有渠道到账期限字段，追踪任务也改变不了支付进度，所以文案里必须显式撇清。
+	if !strings.Contains(sla.PromiseText, "不等于") && !strings.Contains(sla.PromiseText, "不是渠道") {
+		return errors.New("sla.promise_text 必须显式撇清：这是本服务的跟进时限，不是渠道到账承诺（文案需含「不等于」或「不是渠道」）")
+	}
+	if strings.Contains(sla.SoonText, "已到账") || strings.Contains(sla.PromiseText, "已到账") {
+		return errors.New("sla 文案不能出现「已到账」：到期前不能替支付状态宣布结果")
+	}
 	if strings.TrimSpace(sla.DueText) == "" {
 		return errors.New("sla.due_text 不能为空：到期必须说清《未到账》，不能暗示已到账")
 	}

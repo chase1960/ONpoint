@@ -93,7 +93,7 @@ func TestPromiseClockStartsWhenTrackingTaskIsCreated(test *testing.T) {
 	if task.PromiseMinutes != activeRules.promiseMinutes() {
 		test.Fatal("承诺时长应来自规则文件，不是代码常量")
 	}
-	if record.Facts["承诺到账时间"] == "" {
+	if record.Facts["下次反馈时间"] == "" {
 		test.Fatal("用户看不到承诺时间，等于没承诺")
 	}
 	if !hasEventKind(record, "promise_set") {
