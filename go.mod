@@ -1,4 +1,4 @@
-module youju
+module github.com/chase1960/ONpoint
 
 go 1.25.0
 

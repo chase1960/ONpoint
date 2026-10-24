@@ -1,9 +1,9 @@
-# 有据 · OTA 售后履约 Agent
+# ONpoint · OTA 售后履约 Agent
 
 > **模型负责听懂，规则负责裁决，回执负责证明。**
 > 一个可本地运行的售后履约 Agent：把用户的一句模糊诉求，变成一次有依据、有授权、可回查的处理。
 
-`有据`（youju）是一个 Go + 原生前端的单机演示项目，面向 OTA / 电商售后场景。它不追求"什么都能办"，只回答一个问题：
+`ONpoint` 是一个 Go + 原生前端的单机演示项目，面向 OTA / 电商售后场景。它不追求"什么都能办"，只回答一个问题：
 
 **一次人工处理，怎样变成下一次真正可调用的能力？**
 
@@ -99,7 +99,7 @@ go run . -addr 127.0.0.1:8088 -data data/ota-routing.db -fixtures fixtures/ota.j
 Windows 也可以直接用脚本：
 
 ```powershell
-.\scripts\Start-Youju.ps1
+.\scripts\Start-ONpoint.ps1
 ```
 
 ### 不配密钥也能跑
@@ -107,7 +107,7 @@ Windows 也可以直接用脚本：
 JEV 判定层默认 **关闭**（`jev.settings.json` → `shadow` 或 `off`），此时分诊完全走本地规则，全部功能可用。接不接外部判定服务，是增强项，不是闭环成立的前提。
 
 ```powershell
-.\scripts\Start-Youju.ps1 -CheckJEV    # 只检查连通性，不做推理
+.\scripts\Start-ONpoint.ps1 -CheckJEV    # 只检查连通性，不做推理
 ```
 
 密钥只从环境变量或系统凭据读，不写进仓库。详见 [`docs/大模型Key申请与配置.md`](docs/大模型Key申请与配置.md)。

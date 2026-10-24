@@ -210,7 +210,7 @@ func TestLLMRiskAndConfirmedActionsDoNotCallModel(t *testing.T) {
 }
 
 func TestLLMLiveSyntheticMVP(t *testing.T) {
-	if os.Getenv("YOUJU_TEST_LLM_LIVE") != "1" {
+	if os.Getenv("ONPOINT_TEST_LLM_LIVE") != "1" {
 		t.Skip("explicit live test opt-in required")
 	}
 	app := testApp(t)

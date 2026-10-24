@@ -4,7 +4,7 @@
 
 ## 已实现
 
-- `Start-Youju.ps1` 加载独立的 `JEV-Config.ps1` 和非敏感 `jev.settings.json`，读取当前进程／Windows 用户环境中的密钥。
+- `Start-ONpoint.ps1` 加载独立的 `JEV-Config.ps1` 和非敏感 `jev.settings.json`，读取当前进程／Windows 用户环境中的密钥。
 - 读取 Windows 已启用的静态 HTTP/HTTPS 代理，仅传入 JEV 客户端；不修改系统代理或全局 HTTP_PROXY。支持显式 `TYPESAFE_PROXY_URL`，本机回环目标继续直连。
 - Go 客户端通过显式代理执行 HTTPS CONNECT，保持 TLS 证书校验和禁止重定向；代理地址及密钥不进入前端状态或日志。
 - 默认固定 `jev-1.14.0`，shadow 模式，15 秒超时。仅界面触发的合成样例可外发；没有后台预热、自动批量调用或自动重试。
@@ -12,7 +12,7 @@
 
 ## 实际验证结果
 
-`Start-Youju.ps1 -CheckJEV` 返回：
+`Start-ONpoint.ps1 -CheckJEV` 返回：
 
 ```json
 {"Status":"ok","Models":["jev-latest","jev-preview"],"ProxyEnabled":true,"InferenceRun":false}
@@ -29,8 +29,8 @@
 ## 再次启动或检查
 
 ```powershell
-.\Start-Youju.ps1 -CheckJEV
-.\Start-Youju.ps1
+.\Start-ONpoint.ps1 -CheckJEV
+.\Start-ONpoint.ps1
 ```
 
 可在 `jev.settings.json` 中长期设为 `mode: off`，或启动前通过 `$env:JEV_MODE='off'` 临时停用。系统代理关闭时，脚本会明确报错，不会静默改走另一条网络路径。直接运行 Go 的环境配置说明见 README。

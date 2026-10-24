@@ -1,7 +1,7 @@
 param([switch]$Online)
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'LLM-Config.ps1')
-$config = Get-有据LLMConfig
+$config = Get-ONpointLLMConfig
 if ($null -eq $config) {
     Write-Host 'Not configured. Run .\Configure-LLM.ps1 first. No API request was sent.'
     exit 1

@@ -1,13 +1,13 @@
 # 大模型 Key 申请与本机配置
 
-适用项目：当前目录的 有据。更新：2026-10-24。
+适用项目：当前目录的 ONpoint。更新：2026-10-24。
 
 ## 1. 申请百炼 Key（默认方案）
 
 1. 打开 [阿里云百炼控制台](https://bailian.console.aliyun.com/)，注册或登录阿里云账号。
 2. 首次使用按页面提示开通百炼服务；如提示实名认证，由你在官方页面完成。充值、付款由你自行决定。
 3. 地域选择 **华北2（北京）**。进入 **API Key** 页面，点击 **创建 API Key**。个人本机演示可使用自己的账号与默认业务空间。
-4. 如需限制模型，选择自定义权限、开启访问模型范围，只勾选 `qwen-flash`。如页面允许备注，可填 `youju-demo`。
+4. 如需限制模型，选择自定义权限、开启访问模型范围，只勾选 `qwen-flash`。如页面允许备注，可填 `ONpoint-demo`。
 5. 创建后复制 Key，留在本机配置入口使用，**不要粘贴到聊天、截图、前端代码或说明文档中**。
 6. 如需使用新版业务空间域名，另在业务空间管理页面复制业务空间 ID；它不是 API Key。
 
@@ -69,7 +69,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Configure-LLM.ps1
 配置后重新运行启动脚本，新进程才会读取配置：
 
 ```powershell
-.\Start-Youju.ps1
+.\Start-ONpoint.ps1
 ```
 
 启动脚本解密凭证并注入本次服务进程环境：`LLM_PROVIDER`、`LLM_BASE_URL`、`LLM_MODEL`、`LLM_API_KEY`，以及对应的 `DASHSCOPE_API_KEY` 或 `DEEPSEEK_API_KEY`。不会写系统永久环境变量，也不会把密钥返回网页。

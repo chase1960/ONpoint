@@ -1,5 +1,5 @@
 # Local per-process JEV configuration. Reading this file makes no network calls.
-function ConvertTo-有据JEVProxyUri {
+function ConvertTo-ONpointJEVProxyUri {
     param([Parameter(Mandatory)][string]$ProxyServer)
     $server = $ProxyServer.Trim()
     if ($server -match '=') {
@@ -23,15 +23,15 @@ function ConvertTo-有据JEVProxyUri {
     return $proxyUri
 }
 
-function Get-有据JEVSystemProxyUri {
+function Get-ONpointJEVSystemProxyUri {
     $settings = Get-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -ErrorAction SilentlyContinue
     if ($settings.ProxyEnable -ne 1 -or [string]::IsNullOrWhiteSpace($settings.ProxyServer)) {
         throw 'No enabled Windows HTTP/HTTPS proxy is configured for JEV. Start your existing proxy or change jev.settings.json.'
     }
-    return ConvertTo-有据JEVProxyUri -ProxyServer $settings.ProxyServer
+    return ConvertTo-ONpointJEVProxyUri -ProxyServer $settings.ProxyServer
 }
 
-function Get-有据JEVEnvironment {
+function Get-ONpointJEVEnvironment {
     param([string]$Root = $PSScriptRoot)
     $settingsPath = Join-Path $Root 'jev.settings.json'
     if (-not (Test-Path -LiteralPath $settingsPath)) { return @{} }
@@ -59,9 +59,9 @@ function Get-有据JEVEnvironment {
     $result['JEV_MODE'] = $mode
     $proxy = [Environment]::GetEnvironmentVariable('TYPESAFE_PROXY_URL', 'Process')
     if (-not [string]::IsNullOrWhiteSpace($proxy)) {
-        $result['TYPESAFE_PROXY_URL'] = (ConvertTo-有据JEVProxyUri -ProxyServer $proxy).AbsoluteUri
+        $result['TYPESAFE_PROXY_URL'] = (ConvertTo-ONpointJEVProxyUri -ProxyServer $proxy).AbsoluteUri
     } elseif ($settings.use_system_proxy) {
-        $result['TYPESAFE_PROXY_URL'] = (Get-有据JEVSystemProxyUri).AbsoluteUri
+        $result['TYPESAFE_PROXY_URL'] = (Get-ONpointJEVSystemProxyUri).AbsoluteUri
     } else { $result['TYPESAFE_PROXY_URL'] = '' }
     return $result
 }

@@ -17,7 +17,7 @@ $baseUrl = if ($Provider -eq 'DeepSeek') {
 } else {
     'https://dashscope.aliyuncs.com/compatible-mode/v1'
 }
-Assert-有据LLMEndpoint -Provider $Provider -BaseUrl $baseUrl
+Assert-ONpointLLMEndpoint -Provider $Provider -BaseUrl $baseUrl
 Write-Host "Provider: $Provider | Model: $Model"
 Write-Host 'Paste the API Key below. Input is hidden; do not send the key to chat.'
 $secret = Read-Host 'API Key' -AsSecureString

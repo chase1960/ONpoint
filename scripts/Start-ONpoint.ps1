@@ -2,15 +2,14 @@ param([string]$Address = '127.0.0.1:8088', [string]$Data = 'data/ota-routing.db'
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 . (Join-Path $PSScriptRoot 'LLM-Config.ps1')
-$llmConfig = Get-有据LLMConfig
+$llmConfig = Get-ONpointLLMConfig
 . (Join-Path $PSScriptRoot 'JEV-Config.ps1')
-$jevEnvironment = Get-有据JEVEnvironment
-$cachedToolchain = 'D:\Download\有据\cache\go\pkg\mod\golang.org\toolchain@v0.0.1-go1.25.14.windows-amd64\bin\go.exe'
-$goCommand = if (Test-Path -LiteralPath $cachedToolchain) { $cachedToolchain } else { (Get-Command go -ErrorAction Stop).Source }
+$jevEnvironment = Get-ONpointJEVEnvironment
+$goCommand = (Get-Command go -ErrorAction Stop).Source
 $env:GOTOOLCHAIN = 'local'
-$cachedModules = 'D:\Download\有据\cache\go\pkg\mod'
-if (Test-Path -LiteralPath $cachedModules) { $env:GOMODCACHE = $cachedModules }
-$env:GOCACHE = if (Test-Path -LiteralPath 'D:\Download\有据\cache\go-build') { 'D:\Download\有据\cache\go-build' } else { Join-Path $PSScriptRoot 'cache/go-build' }
+# 需要复用已有模块缓存时，先设置 ONPOINT_GOMODCACHE，脚本不写死任何本机路径
+if (-not [string]::IsNullOrWhiteSpace($env:ONPOINT_GOMODCACHE)) { $env:GOMODCACHE = $env:ONPOINT_GOMODCACHE }
+$env:GOCACHE = Join-Path $PSScriptRoot 'cache/go-build'
 $env:GOTMPDIR = Join-Path $PSScriptRoot 'cache/tmp'
 New-Item -ItemType Directory -Force $env:GOCACHE, $env:GOTMPDIR | Out-Null
 $env:TEMP = $env:GOTMPDIR
