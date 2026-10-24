@@ -18,7 +18,7 @@ var workflowSteps = []string{"query_order", "query_refund_trace", "explain_statu
 var stopConditions = []string{"订单或退款状态未知", "非铁路或非沙箱渠道", "投诉争议或资金权益诉求", "用户要求人工", "工具失败", "未明确确认或证据已过期", "退票未成功或支付不在处理中"}
 
 func (app *App) newCase(orderID string) *Case {
-	record := &Case{ID: uniqueID("CASE-"), State: "intake", Snapshot: app.store.Active, OrderID: orderID, Updated: stamp(), Fault: "none", Facts: map[string]string{}, Messages: []Message{}, Events: []Event{}, Evidence: []Evidence{}, Plans: []Plan{}, ActualSteps: []string{}}
+	record := &Case{ID: uniqueID("CASE-"), State: "intake", Snapshot: app.store.Active, RulesHash: rulesHash(), OrderID: orderID, Updated: stamp(), Fault: "none", Facts: map[string]string{}, Messages: []Message{}, Events: []Event{}, Evidence: []Evidence{}, Plans: []Plan{}, ActualSteps: []string{}}
 	record.event("case_opened", "固定快照 "+record.Snapshot+"；当前仅操作 DEMO-USER 合成订单")
 	record.Owner = "agent"
 	app.store.Cases[record.ID] = record
@@ -129,6 +129,10 @@ func (app *App) eligible(record *Case) error {
 	if !exists || snapshot.PolicyHash != digest(app.dataset.Policy) || snapshot.DatasetHash != digest(app.dataset) {
 		return errors.New("政策或演示数据版本变化，需要重新建案核验")
 	}
+	// 规则版本漂移：案件是在某一版规则下核验通过的，规则换了就不能拿旧结果放行。
+	if record.RulesHash != "" && record.RulesHash != rulesHash() {
+		return errors.New("业务规则已变化（" + shortHash(record.RulesHash) + " → " + shortHash(rulesHash()) + "），旧核验结果失效，需要重新建案核验")
+	}
 	return nil
 }
 
@@ -199,6 +203,32 @@ func (app *App) assess(record *Case, text string) {
 	intent := app.intakeIntent(record, text)
 	if intent == "unknown" && record.Intent == "refund_progress" && (orderPattern.MatchString(text) || containsAny(text, "查一下", "进度")) {
 		intent = record.Intent
+	}
+	// 规则文件里声明的 action 必须真的驱动分发。
+	// 以前 action/level 只是被加载、没人读，改配置等于改了个寂寞——「整表替换、零改代码」是句空话。
+	// 现在统一过一遍：声明 handoff 就一定转人工（只加闸方向，永远安全）；
+	// 声明 process / static_consultation 但代码没有对应执行路径的，按不可用转人工，绝不静默降级。
+	if rule, exists := activeRules.intentRule(intent); exists && rule.Action != "" &&
+		!slices.Contains([]string{"human", "dispute", "compensation", "unauthorized"}, intent) {
+		switch rule.Action {
+		case "handoff":
+			record.Intent = intent
+			record.event("intent_judged", "输入分诊："+intent+"；按规则声明的 action=handoff 分发")
+			app.handoff(record, rule.Reason)
+			return
+		case "process":
+			if intent != "refund_progress" {
+				record.Intent = intent
+				app.handoff(record, "规则声明可办理 "+intent+"，但当前代码没有该业务的执行路径；按不可用处理，不静默降级")
+				return
+			}
+		case "static_consultation":
+			if intent != "policy_query" {
+				record.Intent = intent
+				app.handoff(record, "规则声明只读答复 "+intent+"，但当前代码没有该业务的只读路径；按不可用处理")
+				return
+			}
+		}
 	}
 	if intent == "human" || intent == "dispute" || intent == "compensation" || intent == "unauthorized" {
 		record.Intent = intent
@@ -393,7 +423,7 @@ func (app *App) offer(record *Case, procedure Procedure, actor string) {
 			record.ProposalID = uniqueID("PLAN-")
 			token := digest([]any{record.ID, record.ProposalID, record.OrderID, record.Snapshot, record.QueryOrder, record.QueryAt, procedure.ID, actor})
 			record.Plans = []Plan{{ID: "followup", ArtifactID: record.ProposalID, Title: "查询说明已完成，申请追踪退款进度", Description: "关联当前合成订单，创建可查询的追踪任务；不发起退款，不承诺到账。", Clause: app.dataset.Policy.ID + " / " + app.dataset.Policy.Version, ProcedureID: procedure.ID, Token: token, Steps: slices.Clone(procedure.Steps), Benefits: []string{"不再重复说明，查询证据与任务始终关联同案", "可查看任务号、创建时间、执行者与流程版本"}, Notes: []string{"仅提交沙箱追踪请求，不能改变支付退款状态", "需要客户本人明确确认；查询超过5分钟需重新核验"}}}
-			app.store.Proposals[record.ProposalID] = &Proposal{ID: record.ProposalID, CaseID: record.ID, OrderID: record.OrderID, PolicyVersion: app.dataset.Policy.Version, Snapshot: record.Snapshot, ProcedureID: procedure.ID, Status: "proposed", CreatedAt: stamp(), Plan: record.Plans[0]}
+			app.store.Proposals[record.ProposalID] = &Proposal{ID: record.ProposalID, CaseID: record.ID, OrderID: record.OrderID, PolicyVersion: app.dataset.Policy.Version, Snapshot: record.Snapshot, ProcedureID: procedure.ID, Status: "proposed", CreatedAt: stamp(), RulesHash: rulesHash(), Plan: record.Plans[0]}
 			record.event("plan_created", "方案卡 "+record.ProposalID+" 关联本案件、订单和流程；尚未执行")
 			return
 		}
@@ -435,6 +465,9 @@ func (app *App) confirm(record *Case, input Request) error {
 	proposal := app.store.Proposals[record.ProposalID]
 	if proposal == nil || proposal.Status != "proposed" || proposal.Plan.Token != plan.Token {
 		return errors.New("方案卡资产已失效")
+	}
+	if proposal.RulesHash != "" && proposal.RulesHash != rulesHash() {
+		return errors.New("业务规则已变化（" + shortHash(proposal.RulesHash) + " → " + shortHash(rulesHash()) + "），该方案卡判据失效，需重新核验")
 	}
 	if input.PlanID != plan.ID || input.PlanToken != plan.Token {
 		return errors.New("方案确认已失效，请重新核对")

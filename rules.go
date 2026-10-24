@@ -117,6 +117,13 @@ func (rules *RuleSet) validate() error {
 		if intent.Action == "" {
 			return errors.New("intent " + intent.ID + " 缺少 action")
 		}
+		// action 必须有代码里的真实分发路径。声明一个代码不认识的动作，
+		// 等于配置看起来生效、实际没人读——这正是"整表替换零改代码"最容易骗人的地方。
+		switch intent.Action {
+		case "handoff", "process", "static_consultation":
+		default:
+			return errors.New("intent " + intent.ID + " 的 action 未知：" + intent.Action + "（可用：handoff / process / static_consultation）")
+		}
 		// 没有关键词就必须声明匹配器，否则这一条永远命中不了，等于悄悄少了一条规则。
 		if len(intent.Words) == 0 && intent.Matcher == "" {
 			return errors.New("intent " + intent.ID + " 既无关键词也无匹配器")
@@ -311,6 +318,27 @@ func applyRules(rules *RuleSet) {
 	activeRules = rules
 	workflowSteps = rules.WorkflowSteps
 	stopConditions = rules.StopConditions
+}
+
+// rulesHash 是当前规则集的指纹，直接从 activeRules 推导，不单独缓存。
+// 缓存就会和 activeRules 脱钩（测试里换规则又只恢复 activeRules 时尤其明显），
+// 而指纹一旦说谎，"规则冻结"就形同虚设。
+//
+// 案件和方案卡都必须记住自己是在哪一版规则下核验通过的：规则一改，旧核验结果就不能再拿来放行。
+// 否则「规则外置」会变成一条绕过审计的后门——改个配置文件就能让旧案件悄悄换一套判据。
+func rulesHash() string {
+	if activeRules == nil {
+		return ""
+	}
+	return digest(activeRules)
+}
+
+// shortHash 取指纹前 8 位，只用于人和日志看，不用于比较。
+func shortHash(value string) string {
+	if len(value) > 8 {
+		return value[:8]
+	}
+	return value
 }
 
 // rulesVersion 供启动日志与状态接口显示当前规则版本。

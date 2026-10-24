@@ -60,6 +60,7 @@ type Case struct {
 	TrackingRequested, HumanRequested                                                       bool
 	Owner                                                                                   string
 	ID, State, Snapshot, OrderID, Intent, Risk, Receipt, Selected, Updated, Decision, Fault string
+	RulesHash                                                                               string
 	HumanHandled, HumanPrepared                                                             bool
 	Facts                                                                                   map[string]string
 	Messages                                                                                []Message
@@ -74,6 +75,7 @@ type Case struct {
 }
 type Proposal struct {
 	ID, CaseID, OrderID, PolicyVersion, Snapshot, ProcedureID, Status, CreatedAt, ConfirmedAt, Receipt string
+	RulesHash                                                                                          string
 	Plan                                                                                               Plan
 }
 // Task 的 DueAt / PromiseMinutes 是承诺时钟（SLA）：任务一旦建立，系统就对"什么时候到"给出可核验的时间点。

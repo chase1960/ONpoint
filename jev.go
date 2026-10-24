@@ -44,14 +44,18 @@ var jevQuestionOrder = []string{"refund_progress", "human_requested", "plan_resp
 // 转人工不可逆 → 门槛最高 0.85；安全漏判代价极高 → 门槛最低 0.50 且 fail-closed。
 var jevQuestionSpecs = map[string]jevQuestionSpec{
 	"refund_progress": {
-		ID: "refund_progress", Version: "rp.v1", Threshold: 0.80,
-		Instructions: "Does the user want us to act on an existing refund, or only to be told its status?",
+		// rp.v2：这一题只判「业务归属」，不判「办理意愿」。
+		// v1 把"只查进度"判成 no，路由又把 no 排除在退款进度之外，
+		// 于是正常口语的"钱到哪了"会被卡在 unknown——题目自己和路由打架。
+		// 办理意愿本来就不该让模型猜：它由明确的追踪申请和确认按钮承载。
+		ID: "refund_progress", Version: "rp.v2", Threshold: 0.80,
+		Instructions: "Is this request about the progress or arrival of an existing refund? Answer yes even if the user only asks to be told the status and does not ask us to act.",
 		Criteria: map[string]string{
-			"yes":     "Clearly asks us to act: track, chase, create a task, or handle it.",
-			"no":      "Only wants to know the status or timing, or says not to act.",
+			"yes":     "Asks about the progress, status, timing or arrival of an existing refund, including when they only want to be told.",
+			"no":      "Not about an existing refund's progress: a different request, or an unrelated topic.",
 			"unclear": "Ambiguous or too short to determine.",
 		},
-		Note: "判不出办理意图 = 只做只读，绝不动手",
+		Note: "只判业务归属，不判办理意愿；是否动手由明确的追踪申请与确认按钮决定",
 	},
 	"human_requested": {
 		ID: "human_requested", Version: "hr.v1", Threshold: 0.85,

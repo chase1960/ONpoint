@@ -72,7 +72,8 @@ func hashChange(change *Change) string {
 	return digest([]any{change.ID, change.Source, change.SourcePlan, change.SourceTask, change.Title, change.Note, change.Procedure})
 }
 func (app *App) binding(change *Change) string {
-	return digest([]any{hashChange(change), app.store.Active, app.store.Snapshots[app.store.Active], app.dataset, "engine-v4-jev-switch/tools-v1/replay-v3"})
+	// 规则版本进绑定：规则一改，旧的回放批准就不再成立，必须重新跑一遍。
+	return digest([]any{hashChange(change), app.store.Active, app.store.Snapshots[app.store.Active], app.dataset, rulesHash(), "engine-v4-jev-switch/tools-v1/replay-v3/rules-frozen"})
 }
 func (app *App) validApproval(change *Change) bool {
 	if change.ReplayHash != hashChange(change) || change.Base != app.store.Active || change.Binding != app.binding(change) || change.ReportHash != digest(change.Replay) || len(change.Replay) == 0 {

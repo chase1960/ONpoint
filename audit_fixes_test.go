@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -124,5 +125,127 @@ func TestJEVSafetySignalAbsentDoesNotFloodHuman(test *testing.T) {
 	decision := decideIntake("票退了，钱咋还没回来？帮我查查", "assist", "", &observation)
 	if decision.Reason == "model_safety_signal" {
 		test.Fatal("拿不准时不能借安全理由把请求推给人工")
+	}
+}
+
+// cloneRules 深拷贝规则，用来模拟"改了一次配置"。
+func cloneRules(test *testing.T, rules *RuleSet) *RuleSet {
+	test.Helper()
+	content, err := json.Marshal(rules)
+	if err != nil {
+		test.Fatal(err)
+	}
+	var result RuleSet
+	if err := json.Unmarshal(content, &result); err != nil {
+		test.Fatal(err)
+	}
+	return &result
+}
+
+// F6：规则版本必须冻结在案件上。改了规则，旧的核验结果就得作废——
+// 否则"规则外置"会变成一条后门：改个配置文件就能让旧案件悄悄换一套判据。
+func TestRulesDriftInvalidatesOldVerification(test *testing.T) {
+	app := testApp(test)
+	order, known := app.dataset.order("DEMO-RAIL-001")
+	if !known {
+		test.Fatal("缺少合成订单")
+	}
+	record := app.newCase("DEMO-RAIL-001")
+	if record.RulesHash == "" {
+		test.Fatal("建案必须记下当时的规则指纹")
+	}
+	record.Intent = "refund_progress"
+	record.QueryOrder = &order
+	if err := app.eligible(record); err != nil {
+		test.Fatal("同版本规则下应可核验：", err)
+	}
+	rules, err := loadRules("fixtures/rules.json")
+	if err != nil {
+		test.Fatal(err)
+	}
+	modified := cloneRules(test, rules)
+	modified.Version = rules.Version + "-changed"
+	previousRules, previousSteps, previousStops := activeRules, workflowSteps, stopConditions
+	applyRules(modified)
+	defer func() { activeRules, workflowSteps, stopConditions = previousRules, previousSteps, previousStops }()
+	if rulesHash() == record.RulesHash {
+		test.Fatal("改规则后指纹必须变化")
+	}
+	if err := app.eligible(record); err == nil || !strings.Contains(err.Error(), "业务规则已变化") {
+		test.Fatal("规则变化后旧核验结果必须失效，实际：", err)
+	}
+}
+
+// F6 的另一半：批准绑定也要吃规则版本，改了规则旧批准不能继续生效。
+func TestRulesDriftChangesApprovalBinding(test *testing.T) {
+	app := testApp(test)
+	change := &Change{ID: "CHG-BIND", Source: "test", Title: "候选流程", Base: app.store.Active}
+	before := app.binding(change)
+	rules, err := loadRules("fixtures/rules.json")
+	if err != nil {
+		test.Fatal(err)
+	}
+	modified := cloneRules(test, rules)
+	modified.Version = rules.Version + "-changed"
+	previousRules, previousSteps, previousStops := activeRules, workflowSteps, stopConditions
+	applyRules(modified)
+	defer func() { activeRules, workflowSteps, stopConditions = previousRules, previousSteps, previousStops }()
+	if app.binding(change) == before {
+		test.Fatal("规则变化后批准绑定必须变化，否则旧批准仍能生效")
+	}
+}
+
+// F7：配置里声明的动作必须真的驱动分发，不能只是被加载着好看。
+func TestConfigActionHandoffActuallyDispatches(test *testing.T) {
+	rules, err := loadRules("fixtures/rules.json")
+	if err != nil {
+		test.Fatal(err)
+	}
+	modified := cloneRules(test, rules)
+	for index := range modified.Intents {
+		if modified.Intents[index].ID == "refund_progress" {
+			modified.Intents[index].Action = "handoff"
+			modified.Intents[index].Reason = "配置要求转人工"
+		}
+	}
+	if err := modified.validate(); err != nil {
+		test.Fatal(err)
+	}
+	previousRules, previousSteps, previousStops := activeRules, workflowSteps, stopConditions
+	applyRules(modified)
+	defer func() { activeRules, workflowSteps, stopConditions = previousRules, previousSteps, previousStops }()
+	app := testApp(test)
+	record := app.newCase("DEMO-RAIL-001")
+	mustApply(test, app, Request{Action: "message", CaseID: record.ID, Text: "票退了，钱咋还没回来？帮我查查"})
+	if record.State != "handoff" {
+		test.Fatal("规则声明 handoff 就必须转人工，实际状态：", record.State)
+	}
+}
+
+// F7：声明一个代码不认识的动作必须被拒绝，不能静默加载。
+func TestUnknownConfigActionIsRejectedAtLoad(test *testing.T) {
+	rules, err := loadRules("fixtures/rules.json")
+	if err != nil {
+		test.Fatal(err)
+	}
+	modified := cloneRules(test, rules)
+	modified.Intents[0].Action = "auto_refund_everything"
+	if err := modified.validate(); err == nil {
+		test.Fatal("未知 action 必须被拒绝：配置不能看起来生效、实际没人读")
+	}
+}
+
+// F5：refund_progress 只判业务归属，不再把"只查进度"判成 no——
+// v1 的题面跟路由互相打架，正常口语的"钱到哪了"会被卡在 unknown。
+func TestRefundProgressQuestionJudgesScopeNotIntentToAct(test *testing.T) {
+	spec := jevQuestionSpecs["refund_progress"]
+	if strings.Contains(spec.Instructions, "only to be told its status") {
+		test.Fatal("题面仍在问办理意愿，会与路由打架：", spec.Instructions)
+	}
+	if !strings.Contains(spec.Criteria["yes"], "only want to be told") {
+		test.Fatal("「只查询」必须算进退款进度业务，否则正常口语会卡在 unknown")
+	}
+	if spec.Version != "rp.v2" {
+		test.Fatal("语义变更必须升版本号，回放基线才对得上：", spec.Version)
 	}
 }
