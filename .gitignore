@@ -1,0 +1,14 @@
+# 数据与构建产物：不入库
+data/
+cache/
+bin/
+*.db
+*.log
+
+# 凭据：一律不入库
+.secrets/
+.env
+.env.*
+!.env.example
+llm.settings.json
+llm.credential.xml

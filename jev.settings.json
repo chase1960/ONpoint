@@ -1,0 +1,8 @@
+{
+  "base_url": "https://api.typesafe.ai",
+  "model": "jev-1.14.0",
+  "mode": "shadow",
+  "use_system_proxy": true,
+  "allow_synthetic_egress": true,
+  "timeout_ms": 15000
+}

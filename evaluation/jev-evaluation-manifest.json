@@ -1,0 +1,27 @@
+{
+  "status": "draft_not_run",
+  "data_kind": "synthetic_not_real_customer_data",
+  "development_count": 22,
+  "validation_draft_count": 28,
+  "model": "jev-1.14.0",
+  "question_version": "intake-choice-v2",
+  "current_thresholds": {
+    "refund_yes": 0.85,
+    "human_yes_or_no": 0.9,
+    "margin": 0.2
+  },
+  "comparison": [
+    "rules_off",
+    "rules_with_jev_assist"
+  ],
+  "shadow_changes_business_routes": false,
+  "required_before_execution": [
+    "human_label_review",
+    "freeze_corpus_questions_thresholds_and_fixture_hashes",
+    "isolated_evaluation_loader_and_result_export",
+    "explicit_live_inference_data_and_budget_authorization"
+  ],
+  "current_runtime_limitation": "Only the 22 exact fixture texts are eligible. New validation cases are NOT loaded or allowlisted by writing this dataset.",
+  "label_warning": "Proposed atomic meaning and final route/state are distinct. Legacy Intent is a priority-routed business label, not an atomic refund gold label.",
+  "independence_warning": "New cases were drafted after inspecting code; this is an engineering challenge set, not an independent blind benchmark. Before a stronger claim, obtain separately authored unseen cases."
+}

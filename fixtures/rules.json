@@ -1,0 +1,144 @@
+{
+  "version": "rules-2026-10-24.1",
+  "note": "业务规则外置。内核只读本文件，不读硬编码常量；改规则不需要动 Go 代码。intents 自上而下第一条命中即返回，顺序即优先级，不要随意上调条目。",
+
+  "intents": [
+    {
+      "id": "dispute",
+      "level": "L3",
+      "action": "handoff",
+      "words": ["投诉", "追究责任", "纠纷", "曝光", "律师"],
+      "reason": "L3 投诉争议，停止自动处理"
+    },
+    {
+      "id": "compensation",
+      "level": "L2",
+      "action": "handoff",
+      "words": ["补偿", "赔偿", "差价", "会员权益", "退差额"],
+      "reason": "L2 资金或权益诉求，需要人工复核"
+    },
+    {
+      "id": "unauthorized",
+      "level": "L2",
+      "action": "handoff",
+      "words": ["改成已退款", "忽略规则", "绕过规则", "跳过确认"],
+      "reason": "拒绝越权资金动作与无依据到账承诺"
+    },
+    {
+      "id": "human",
+      "level": "-",
+      "action": "handoff",
+      "matcher": "human_request",
+      "words": [],
+      "reason": "用户明确要求人工",
+      "note": "用 special_intents.human_request 匹配：先剔除否定句，抱怨里带这几个字不算要求转接"
+    },
+    {
+      "id": "ticket_change",
+      "level": "-",
+      "action": "handoff",
+      "words": ["车票退掉", "帮我退票", "办理退票", "我要退票", "改签", "退了这张票"],
+      "reason": "本期未开放该业务执行接口；不能以流程学习绕过"
+    },
+    {
+      "id": "invoice",
+      "level": "-",
+      "action": "handoff",
+      "words": ["发票", "开票"],
+      "reason": "本期未开放该业务执行接口；不能以流程学习绕过"
+    },
+    {
+      "id": "qualification",
+      "level": "-",
+      "action": "handoff",
+      "words": ["儿童票", "学生", "资质"],
+      "reason": "本期未开放该业务执行接口；不能以流程学习绕过"
+    },
+    {
+      "id": "unauthorized",
+      "level": "L2",
+      "action": "handoff",
+      "words": ["直接退款", "直接给我退款", "保证今天到账", "保证到账"],
+      "reason": "拒绝越权资金动作与无依据到账承诺",
+      "note": "同一意图的第二组触发词，位置必须留在资质之后：这句话常与退改签同现，往上并会把真实退改签误判成越权"
+    },
+    {
+      "id": "refund_progress",
+      "level": "L1",
+      "action": "process",
+      "matcher": "tracking",
+      "words": [],
+      "reason": "申请追踪退款进度",
+      "note": "用 special_intents.tracking 匹配：命中只表示申请追踪，不等同于授权执行"
+    },
+    {
+      "id": "policy_query",
+      "level": "L0",
+      "action": "static_consultation",
+      "words": ["规则", "政策"],
+      "reason": "读取版本化演示政策，不执行任务"
+    },
+    {
+      "id": "refund_progress",
+      "level": "L1",
+      "action": "process",
+      "words": ["退款", "退票", "到账", "钱还没", "钱咋还没", "卡里还没", "票退了", "票都退了"],
+      "reason": "退款进度查询"
+    }
+  ],
+
+  "special_intents": {
+    "human_request": {
+      "id": "human",
+      "words": ["转人工", "人工客服", "找真人", "人工处理"],
+      "negations": ["不要转人工", "别转人工", "不是要人工"],
+      "note": "否定句先剔除再匹配"
+    },
+    "tracking": {
+      "id": "refund_progress",
+      "words": ["申请追踪", "提交追踪", "创建追踪", "帮我追", "帮我催", "催一下", "催退款", "继续跟进"]
+    },
+    "read_only": {
+      "words": ["只查", "仅查", "只想知道", "只问进度", "不要追踪", "不申请追踪", "不提交", "不用办理", "取消追踪"]
+    }
+  },
+
+  "eligibility": {
+    "business": "rail",
+    "channel": "sandbox",
+    "ticket": "SUCCESS",
+    "payment": "PROCESSING",
+    "reason": "只适用于铁路退票成功、支付处理中、沙箱渠道"
+  },
+
+  "safety": {
+    "enabled": true,
+    "crisis_words": ["不想活", "自杀", "伤害自己", "同归于尽", "轻生"],
+    "hazard_words": ["起火", "冒烟", "燃烧", "爆炸", "漏电", "伤人", "受伤流血"],
+    "crisis_reason": "人身安全表达，立即转人工，不由自动流程继续",
+    "hazard_reason": "疑似安全事件描述，立即转人工，不由自动流程继续",
+    "note": "只加闸：命中即转人工，永远不会让系统放行"
+  },
+
+  "evidence_ttl_minutes": 5,
+
+  "workflow_steps": [
+    "query_order",
+    "query_refund_trace",
+    "explain_status",
+    "request_confirmation",
+    "create_tracking",
+    "show_receipt",
+    "ask_result"
+  ],
+
+  "stop_conditions": [
+    "订单或退款状态未知",
+    "非铁路或非沙箱渠道",
+    "投诉争议或资金权益诉求",
+    "用户要求人工",
+    "工具失败",
+    "未明确确认或证据已过期",
+    "退票未成功或支付不在处理中"
+  ]
+}
