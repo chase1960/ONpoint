@@ -83,6 +83,9 @@
 | `storage.go` | SQLite 原子事务、不可变快照、判定账本 |
 | `main.go` | 本机 HTTP 服务与失败回滚 |
 | `dist/` | 三个原生前端页签，无构建步骤 |
+| `dist/story/` | 路演页：五通道交互演示（离线回放数据驱动，不需要启动后端） |
+| `export_story_test.go` | 把真实引擎状态导出成路演用的回放数据（`go test -run TestExportStoryReplay`） |
+| `tools/story/` | 路演页的辅助脚本：单文件打包、自检、本地静态预览 |
 
 ---
 
@@ -117,6 +120,33 @@ JEV 判定层默认 **关闭**（`jev.settings.json` → `shadow` 或 `off`）�
 ```bash
 go test ./...
 ```
+
+---
+
+## 路演前端（五通道交互演示）
+
+给评审和观众看的一屏：首页一句话定位 → 五条通道（为什么做 / 亲自体验 / 如何实现 / 决策有凭据 / 经验可复用）→ 逐章展开细节。通道切换有扫描光与揭示动效，键盘 `1`–`5` 可直接跳章。
+
+启动服务后打开 **<http://127.0.0.1:8088/story/index.html>**（`main.go` 用 `FileServer(dist)` 托管，子目录自动可访问），原工作台仍在 `/`。
+
+也可以不启动后端，直接双击 `dist/story/index.html`——它读的是仓库里已导出的 `dist/story/replay-data.js`（33 帧真实引擎状态快照），纯静态即可完整演示。
+
+演示内容上的一条硬边界：**左侧对话区只呈现"用户 ↔ 客服"的真实交互**，后端产生的授权动作以虚线标记单独标注；分诊意图、路由决策、引擎裁决、工具链路、风险标记、案件归属等后端逻辑，全部放在右侧独立栏，前后端不混写。
+
+数据不是手写的：
+
+```bash
+go test -run TestExportStoryReplay -v .     # 重新导出 dist/story/replay-data.js
+```
+
+需要打包成单个离线 HTML（邮件或现场拷 U 盘）时：
+
+```bash
+node tools/story/build-single.cjs           # 产出 ONpoint-交互路演.html
+node tools/story/verify.cjs                 # 16 项自检
+```
+
+详见 [`docs/路演前端.md`](docs/路演前端.md)。
 
 ---
 

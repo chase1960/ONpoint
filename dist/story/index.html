@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#090f0d">
+  <title>ONpoint · 让售后有确定的下一步</title>
+  <link rel="stylesheet" href="story.css">
+  <link rel="stylesheet" href="upgrade.css">
+  <script src="replay-data.js" defer></script>
+  <script src="diagrams.js" defer></script>
+  <script src="story.js" defer></script>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"></div>
+  <header class="site-header">
+    <a class="brand" href="#home" aria-label="ONpoint 首页"><span class="brand-icon">↗</span><span>ON<span class="mint">point</span><small>AFTER-SALES, ON POINT.</small></span></a>
+    <nav class="top-links" aria-label="主要导航"><a href="#background">为什么做</a><a href="#experience">体验系统</a><a href="#architecture">如何实现</a></nav>
+    <button class="quiet guide-button" data-open-guide>观看指引 <span>↗</span></button>
+  </header>
+
+  <main id="main">
+    <section id="home" class="page home-page">
+      <div class="hero-stage">
+        <canvas id="portal" aria-hidden="true"></canvas>
+        <div class="hero-eyebrow"><span class="status-dot"></span> ONPOINT / OTA 售后履约 AGENT</div>
+        <div class="hero-copy"><h1>让每一次售后</h1><a class="portal-cta" href="#background"><i></i><i></i><i></i><i></i><span>立即探索</span><b>ENTER ↗</b></a><h1>都有确定下一步</h1></div>
+        <p class="hero-sub">钱在哪一步，接下来怎么办。<br class="mobile-only">让用户看得见，让处理接得住。</p>
+        <div class="hero-terminal"><span class="mint">$</span> onpoint · from request to receipt<span class="cursor"></span></div>
+        <div class="hero-side-note">一个案件，贯穿人、工具与经验。<br>五个通道，看见一次服务如何闭环。</div>
+        <span class="pixel p1" aria-hidden="true"></span><span class="pixel p2" aria-hidden="true"></span><span class="pixel p3" aria-hidden="true"></span><span class="pixel p4" aria-hidden="true"></span>
+      </div>
+      <div class="channel-section"><div class="section-rule"><span>CHOOSE YOUR CHANNEL / 选择一个通道</span><span>01—05 <i>↓</i></span></div>
+        <nav class="channels" aria-label="五个章节入口">
+          <a href="#background" class="channel"><span class="lane-beam"></span><span class="channel-no">01</span><span class="channel-name">为什么做</span><span class="channel-en">THE PROBLEM</span><span class="channel-desc">从用户的不确定出发</span><span class="channel-enter">进入背景 <b>↗</b></span></a>
+          <a href="#experience" class="channel"><span class="lane-beam"></span><span class="channel-no">02</span><span class="channel-name">亲自体验</span><span class="channel-en">THE EXPERIENCE</span><span class="channel-desc">从一句诉求到一份回执</span><span class="channel-enter">打开工作台 <b>↗</b></span></a>
+          <a href="#architecture" class="channel"><span class="lane-beam"></span><span class="channel-no">03</span><span class="channel-name">如何实现</span><span class="channel-en">THE SYSTEM</span><span class="channel-desc">沿一条消息看清架构</span><span class="channel-enter">探索架构 <b>↗</b></span></a>
+          <a href="#decision" class="channel"><span class="lane-beam"></span><span class="channel-no">04</span><span class="channel-name">决策有凭据</span><span class="channel-en">THE DECISION</span><span class="channel-desc">方案、授权与执行分开</span><span class="channel-enter">拆解方案卡 <b>↗</b></span></a>
+          <a href="#evolution" class="channel"><span class="lane-beam"></span><span class="channel-no">05</span><span class="channel-name">经验可复用</span><span class="channel-en">THE EVOLUTION</span><span class="channel-desc">一次处理，成为下次能力</span><span class="channel-enter">查看复用闭环 <b>↗</b></span></a>
+        </nav>
+      </div>
+      <footer class="home-footer"><span>模型负责听懂 · 规则负责裁决 · 回执负责证明</span><span>交互布局版 <i>／</i> 合成案例回放</span></footer>
+    </section>
+
+    <section class="page detail-page" id="detail" hidden>
+      <div class="detail-heading"><div><a class="breadcrumb" href="#home">← 五个通道</a><p class="eyebrow" id="page-eyebrow"></p><h1 id="page-title"></h1><p class="page-lead" id="page-lead"></p></div><div class="chapter-number" aria-hidden="true" id="chapter-number">01<span>/05</span></div></div>
+
+      <section class="chapter-body" data-panel="background" hidden>
+        <div class="background-layout">
+          <div class="questions"><p class="small-label">用户真正想知道的</p><div class="question"><span>01 / 状态</span><h2>钱，到哪一步了？</h2><p>退票成功之后，退款进度仍然不可见。</p></div><div class="question"><span>02 / 下一步</span><h2>现在，谁来接着办？</h2><p>收到一段说明，却仍要自己找入口、反复追问。</p></div><div class="question"><span>03 / 连续性</span><h2>换个人，还要重讲吗？</h2><p>问题留在聊天里，处理经验留在人脑里。</p></div></div>
+          <div class="problem-answer"><div class="panel-corner"></div><p class="eyebrow">FROM UNCERTAINTY TO A CLEAR NEXT STEP</p><h2>把一次售后，<br>变成一条可核验的链路。</h2><div class="answer-path"><div><span>01</span><section><strong>看见事实</strong><p>订单与支付分别查，每个结论有来源。</p></section></div><div><span>02</span><section><strong>得到方案</strong><p>能做什么、不能做什么，一张卡讲明白。</p></section></div><div><span>03</span><section><strong>确认后执行</strong><p>由用户授权，用任务回执证明发生了什么。</p></section></div><div><span>04</span><section><strong>下次接着用</strong><p>人工处理进入回放与审核，再成为流程资产。</p></section></div></div><a class="text-link" href="#experience">用一个铁路退款案例看懂 <span>↗</span></a></div>
+        </div>
+        <div class="takeaway"><span>这一章，记住一句</span><strong>用户要的，是一个有依据、有人接、可回查的下一步。</strong></div>
+      </section>
+
+      <section class="chapter-body" data-panel="experience" hidden>
+        <div class="experience-top"><div class="segmented" role="group" aria-label="服务视角"><button class="active" data-perspective="customer">客户视角</button><button data-perspective="human">人工接手</button><button data-perspective="evidence">执行记录</button></div><span class="mode-label" id="data-mode"><span class="status-dot"></span> 后端生成 · 离线回放</span><button class="secondary compact" id="backend-toggle">连接 ONpoint 后端</button><button class="quiet" data-reset>↺ 新一轮体验</button></div>
+        <div class="case-brief" id="case-brief"></div>
+        <div class="workbench">
+          <aside class="scenario-rail"><p class="small-label">三类常见售后问题</p><button class="scenario active" data-category="inquiry"><span class="tiny-tag">01 / 查清楚</span><strong>查询与政策咨询</strong><small>钱到哪了？规则怎么说？</small><span>↗</span></button><button class="scenario" data-category="tracking"><span class="tiny-tag">02 / 办到位</span><strong>追踪与受控办理</strong><small>别只解释，能帮我接着办吗？</small><span>↗</span></button><button class="scenario" data-category="handoff"><span class="tiny-tag">03 / 接得住</span><strong>异常、争议与人工</strong><small>查不到、要投诉，怎么继续？</small><span>↗</span></button><div class="case-examples" id="case-examples"></div><a class="text-link" href="#decision">方案卡为什么可信 <span>↗</span></a></aside>
+          <section class="conversation"><header class="conversation-header"><div><span class="service-avatar">↗</span><div><strong>ONpoint 售后助手</strong><small id="case-caption">铁路退款进度 · 合成订单</small></div></div><span class="badge" id="case-state">等待输入</span></header><div class="progress-strip" id="experience-progress"></div><div class="conversation-scroll" id="conversation-scroll"><div id="messages" aria-live="polite"></div><div id="inline-plan"></div><div id="perspective-content"></div></div><div class="composer"><div id="action-area"></div><form id="demo-form"><label class="sr-only" for="demo-input">客户消息</label><input id="demo-input" placeholder="输入演示问句，或点击上方继续" autocomplete="off" maxlength="2000"><button type="submit" aria-label="发送演示消息">↑</button></form><span class="composer-hint">示例：票退了，钱咋还没回来？帮我查查</span></div></section>
+          <aside class="evidence-rail"><div class="evidence-head"><p class="small-label">当前可核验的结果</p><span class="mint">↗</span></div><div id="case-value"></div><div id="facts"></div><div id="receipt"></div><details class="evidence-details"><summary>查看证据与来源 <span id="evidence-count">0 条</span></summary><div id="evidence-list"></div></details><div class="boundary-note"><span>一个清晰的边界</span><p>追踪任务提交 ≠ 退款到账。<br>聊天认可 ≠ 执行授权。</p></div></aside>
+        </div>
+      </section>
+
+      <section class="chapter-body" data-panel="architecture" hidden>
+        <div class="architecture-tabs" role="group" aria-label="架构视图"><button class="active" data-architecture="product">产品全景视图</button><button data-architecture="system">系统架构</button><button data-architecture="runtime">当前运行链路</button><span>原结构重绘 · 与页面配色一致</span></div>
+        <div class="diagram-section" id="diagram-section"><div class="diagram-heading"><p id="diagram-caption">四大 Agent、能力配置与 MVP 闭环，一张图看懂。</p><button class="secondary compact" id="expand-diagram">放大查看 ⤢</button></div><div class="diagram-stage" id="architecture-diagram"></div><p class="diagram-scope">全景图包含规划与扩展模块；当前可运行能力与数据来源以“当前运行链路”和体验页返回为准。</p></div>
+        <div id="runtime-architecture" hidden>
+        <div class="architecture-toolbar"><p><span class="status-dot"></span> 点击任一节点，看它做什么、输入输出是什么。</p><button class="primary compact" id="run-flow">送入一条消息 <span>→</span></button></div>
+        <div class="architecture-layout"><div class="system-map"><div class="map-input"><span class="small-label">客户输入</span><q>票退了，钱咋还没回来？</q><span>↓</span></div><div class="map-line map-line-top"><button class="system-node active" data-node="intake"><span>01 / UNDERSTAND</span><strong>分诊理解</strong><small>业务诉求 · 人工意愿 · 风险</small></button><i>→</i><button class="system-node" data-node="rules"><span>02 / VERIFY</span><strong>规则与证据</strong><small>工具查实 · 约束可行范围</small></button><i>→</i><button class="system-node" data-node="plan"><span>03 / PROPOSE</span><strong>方案与确认</strong><small>明确下一步 · 等待用户授权</small></button></div><div class="map-return">↓ <span>同一案件 · 固定版本 · 全程留痕</span></div><div class="map-line map-line-bottom"><button class="system-node" data-node="evolution"><span>06 / IMPROVE</span><strong>回放与复用</strong><small>候选 → 回放 → 人批 → 发布</small></button><i>←</i><button class="system-node" data-node="store"><span>05 / RECORD</span><strong>状态与回执</strong><small>案件 · 证据 · 任务 · 快照</small></button><i>←</i><button class="system-node" data-node="execute"><span>04 / EXECUTE</span><strong>受控执行</strong><small>执行前重查 · 幂等任务</small></button></div><div class="map-model"><span>可替换增强</span><b>JEV 判定</b><span>／</span><b>LLM 解释</b><small>业务权限始终由代码与规则控制</small></div></div><aside class="node-detail" id="node-detail" aria-live="polite"></aside></div>
+        <div class="takeaway"><span>为什么这样设计</span><strong>理解可以由模型增强，权限与执行必须有清楚的边界。</strong></div>
+        </div>
+      </section>
+
+      <section class="chapter-body" data-panel="decision" hidden>
+        <div class="decision-layout"><aside class="decision-intro"><p class="small-label">亮点 01 / 决策可核验</p><h2>一张卡，<br>把下一步说清楚。</h2><p>把聊天里的建议变成可核对的方案。<br>事实、依据、动作与授权分开呈现。</p><div class="anatomy-tabs" role="group" aria-label="方案卡结构"><button class="active" data-anatomy="facts"><span>01</span> 已核验的事实 <b>↗</b></button><button data-anatomy="scope"><span>02</span> 能做什么与依据 <b>↗</b></button><button data-anatomy="consent"><span>03</span> 用户明确授权 <b>↗</b></button><button data-anatomy="proof"><span>04</span> 执行后的凭据 <b>↗</b></button></div><p class="anatomy-note" id="anatomy-note"></p></aside><div class="showcase-plan" id="showcase-plan"></div></div>
+        <div class="takeaway"><span>这一章，记住一句</span><strong>同一份方案，机器和人工都要走同一条确认与核验链路。</strong></div>
+      </section>
+
+      <section class="chapter-body" data-panel="evolution" hidden>
+        <div class="evolution-layout"><aside class="evolution-intro"><p class="small-label">亮点 02 / 处理可复用</p><h2>这一次人工处理，<br>成为下一次能力。</h2><p>保留处理轨迹，形成流程候选。<br>先回放、再人批，发布后才参与下一案。</p><div class="comparison"><div><small>首次 · v1</small><strong>人工核验并提出方案</strong><span>流程缺口 → 同案接手</span></div><span class="comparison-arrow">↓</span><div class="after"><small>复用 · v2</small><strong>已审核流程直接出卡</strong><span>保留核验与用户确认</span></div></div><button class="primary" id="replay-evolution">逐步查看沉淀过程 <span>→</span></button></aside><section class="evolution-board"><div class="evolution-steps" id="evolution-steps"></div><div class="asset-passport" id="asset-passport"></div><div class="evolution-boundary"><span>可回查 · 可验证 · 可回滚</span><p>当前复用的是固定七步流程模板。一个合成案例证明闭环机制，不代表真实业务效果。</p></div></section></div>
+      </section>
+
+      <nav class="chapter-nav" aria-label="章节导航"><a href="#background" data-chapter="background"><span>01</span> 为什么做</a><a href="#experience" data-chapter="experience"><span>02</span> 亲自体验</a><a href="#architecture" data-chapter="architecture"><span>03</span> 如何实现</a><a href="#decision" data-chapter="decision"><span>04</span> 决策有凭据</a><a href="#evolution" data-chapter="evolution"><span>05</span> 经验可复用</a><button class="next-chapter" id="next-chapter">下一章 →</button></nav>
+      <footer class="detail-footer"><span>ONpoint <i>／</i> 合成案例 · 本地回放 · 无真实资金动作</span><span>1–5 切换章节 <i>·</i> Esc 返回通道</span></footer>
+    </section>
+  </main>
+
+  <dialog id="diagram-modal"><div class="diagram-modal-top"><strong id="diagram-modal-title">架构图</strong><div><button class="quiet" data-diagram-zoom="1">适应窗口</button><button class="quiet" data-diagram-zoom="1.5">150%</button><button class="quiet" data-diagram-zoom="2">200%</button><button class="quiet" id="close-diagram" aria-label="关闭架构大图">关闭 ×</button></div></div><div class="diagram-modal-scroll" id="diagram-modal-scroll"></div></dialog>
+
+  <dialog id="confirm-modal"><form method="dialog"><button class="dialog-close" aria-label="关闭确认弹窗">×</button><p class="eyebrow">YOUR CONSENT / 明确授权</p><h2>确认创建追踪任务？</h2><p>你将针对当前合成订单创建一个沙箱追踪请求。执行前会重新核验订单与支付状态。</p><div class="confirm-facts"><span>将发生的动作</span><strong>提交沙箱退款追踪任务</strong><span>不会发生的动作</span><strong>不发起退款，不修改支付状态</strong></div><div class="dialog-actions"><button class="secondary" value="cancel">再核对一下</button><button class="primary" id="confirm-execute" value="confirm">确认并查看回执 →</button></div><small>本操作播放后端已生成的合成案例记录。</small></form></dialog>
+  <dialog id="guide-modal"><form method="dialog"><button class="dialog-close" aria-label="关闭观看指引">×</button><p class="eyebrow">PRESENTATION GUIDE</p><h2>五个入口，一条主线。</h2><ol class="guide-list"><li><b>背景</b><span>先讲用户为什么需要一个确定的下一步。</span></li><li><b>体验</b><span>输入诉求，查看事实，确认方案，拿到回执。</span></li><li><b>架构</b><span>点亮消息链路，解释规则与模型的分工。</span></li><li><b>方案卡</b><span>展开事实、依据、授权与执行凭据。</span></li><li><b>流程复用</b><span>展示人工轨迹如何经审核进入下一案。</span></li></ol><p class="muted">页面为布局与交互版本。体验数据从 ONpoint 后端导出，离线播放无需模型或网络。</p><button class="primary" value="close">开始探索 →</button></form></dialog>
+  <div class="toast" id="toast" role="status"></div>
+</body>
+</html>
