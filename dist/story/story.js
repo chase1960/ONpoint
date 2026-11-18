@@ -32,6 +32,7 @@ const stateLabels={intake:'等待输入',answered:'事实已核验',plan:'等待
 const stepLabels={query_order:'核验退票记录',query_refund_trace:'核验支付轨迹',explain_status:'说明当前进度',request_confirmation:'等待明确确认',create_tracking:'创建追踪任务',show_receipt:'提供任务回执',ask_result:'确认处理结果'};
 const toolLabels={query_order:'订单查询',query_refund_trace:'支付轨迹',read_policy:'政策读取',create_tracking:'追踪任务'};
 const connection={mode:'replay',store:null,caseID:null,busy:false,error:''};
+let backendAvailable=null; // null=探测中, true=同源后端可用, false=纯静态/离线回放
 const EXAMPLES={
  inquiry:{group:'inquiry',name:'退款进度查询',question:'票退了，钱咋还没回来？帮我查查',order:'DEMO-RAIL-001',start:'start',result:'query',pain:'只收到“请耐心等待”，不知道钱在哪一步。',advantage:'订单与支付分别核验，回答带来源；只查询不自动建任务。'},
  paid:{group:'inquiry',name:'核对已到账回执',question:'我想核对一下退款进度',order:'DEMO-RAIL-003',start:'paid_start',result:'paid',pain:'用户感知与支付回执可能不同，不能凭一句话推断。',advantage:'读取支付回执如实说明，已到账就不再创建处理中追踪。'},
@@ -92,6 +93,7 @@ function renderExperience(){
   $('#data-mode').innerHTML=`<span class="status-dot"></span> ${live?'后端实时返回 · 合成订单':'后端录制 · 合成订单'}`;
   $('#backend-toggle').textContent=connection.busy?'正在请求…':live?'切回稳定回放':'连接 ONpoint 后端';
   $('#backend-toggle').disabled=connection.busy;
+  if(backendAvailable===false)$('#backend-toggle').hidden=true;
   $('.detail-footer span').innerHTML=`ONpoint <i>／</i> 合成案例 · ${live?'后端实时沙箱':'本地回放'} · 无真实资金动作`;
   $('#case-brief').innerHTML=`<div><span>${group==='inquiry'?'查清楚 · 查询与咨询':group==='tracking'?'办到位 · 追踪与办理':'接得住 · 异常与人工'}</span><strong>“${esc(live&&example.liveQuestion?example.liveQuestion:example.question)}”</strong></div><p>${esc(example.pain)}</p><small>${live?'实时读取':'录制于'} ONpoint · ${s.Dataset.Orders.length} 个合成订单${live?'':` · ${esc(data.commit.slice(0,7))}`}</small>`;
   const proof=r.Receipt?'已返回任务回执，资金状态未被改写。':r.State==='plan'?'方案已就绪，尚未确认，因此没有执行。':r.State==='handoff'||r.State==='human'?'已进入人工路径，没有越权创建任务。':r.Evidence.length?`已返回 ${r.Evidence.length} 条工具证据，可展开核验来源。`:'点击发送案例，观察后端实际处理结果。';
@@ -177,6 +179,16 @@ async function requestAPI(input){
   if(!result.Cases||!result.Dataset?.Orders||!result.Tasks)throw new Error('后端返回的数据结构不符合 ONpoint Store。');
   return result;
 }
+async function detectBackend(){
+  const btn=$('#backend-toggle');
+  if(!/^https?:$/.test(location.protocol)){backendAvailable=false;if(btn)btn.hidden=true;return;}
+  try{
+    const response=await fetch('/api/state',{method:'GET',cache:'no-store',signal:AbortSignal.timeout(6000)});
+    const result=await response.json();
+    backendAvailable=Boolean(response.ok&&result.Cases&&result.Dataset?.Orders&&result.Tasks);
+  }catch{backendAvailable=false;}
+  if(btn)btn.hidden=!backendAvailable;
+}
 async function sendLive(input){const store=await requestAPI(input);connection.store=store;return store;}
 async function newLiveCase(){
   const before=new Set(Object.keys(connection.store.Cases));
@@ -191,6 +203,7 @@ async function liveOperation(operation){
   finally{connection.busy=false;renderExperience();}
 }
 $('#backend-toggle').addEventListener('click',async()=>{
+  if(!backendAvailable)return;
   if(connection.mode==='live'){connection.mode='replay';connection.caseID=null;stepTo(scenarioStart());notify('已切回后端录制数据，适合稳定录像。');return;}
   await liveOperation(async()=>{
     const store=await requestAPI();
@@ -275,4 +288,4 @@ function drawPortal(now){
   if(!reduced)raf=requestAnimationFrame(drawPortal);
 }
 addEventListener('resize',sizePortal);
-selectNode('intake');navigate();sizePortal();raf=requestAnimationFrame(drawPortal);
+selectNode('intake');navigate();sizePortal();raf=requestAnimationFrame(drawPortal);void detectBackend();

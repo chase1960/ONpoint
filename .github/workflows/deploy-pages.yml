@@ -1,0 +1,42 @@
+name: Deploy demo page to GitHub Pages
+
+# 把 dist/story 这套纯静态路演回放页发布到 GitHub Pages。
+# 该页面自带录制数据（replay-data.js），不依赖 Go 后端即可离线演示。
+# 主工作台 dist/index.html 依赖 /api/state，不纳入静态托管。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时间只跑一次部署，避免旧部署覆盖新部署。
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload static artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/story
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
