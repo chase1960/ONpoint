@@ -44,6 +44,8 @@ func (record *Case) routeTo(route, reason string) {
 }
 
 func (app *App) handoff(record *Case, reason string) {
+	// 交接本身就是一次进展：澄清计数清零，人工接手后不再带着旧的澄清轮次。
+	record.ClarifyCount = 0
 	record.routeTo("clarify_or_human", reason)
 	app.invalidateProposal(record, "cancelled")
 	record.State = "handoff"
@@ -57,6 +59,25 @@ func (app *App) handoff(record *Case, reason string) {
 	} else {
 		record.say("assistant", "已移交人工待接手，尚未办理退款或创建新任务。人工将接着这份案件处理，不需要你重复说明。")
 	}
+}
+
+// clarify 是澄清安全阀：计数一次仍无法推进的请求（诉求不明或缺订单）。
+// 未达规则上限留在澄清态；达到上限转人工。只加闸——不会因此自动办理任何业务动作，
+// 也不推断订单或退款事实。
+func (app *App) clarify(record *Case, reason, decision, message string) {
+	record.ClarifyCount++
+	maxTurns := activeRules.ClarifyMaxTurns
+	if maxTurns < 1 {
+		maxTurns = 2
+	}
+	if record.ClarifyCount >= maxTurns {
+		app.handoff(record, fmt.Sprintf("连续 %d 次未能明确诉求或缺少订单，按澄清安全阀转人工补充：%s", record.ClarifyCount, reason))
+		return
+	}
+	record.routeTo("clarify_or_human", reason)
+	record.State = "clarify"
+	record.Decision = decision
+	record.say("assistant", message)
 }
 
 func (app *App) tool(record *Case, name, input string, output any, success bool) {
@@ -270,6 +291,7 @@ func (app *App) assess(record *Case, text string) {
 	}
 	if intent == "policy_query" {
 		record.TrackingRequested = false
+		record.ClarifyCount = 0
 		record.routeTo("static_consultation", "读取版本化演示政策，不执行任务")
 		app.tool(record, "read_policy", app.dataset.Policy.ID, app.dataset.Policy, true)
 		record.State = "answered"
@@ -278,10 +300,7 @@ func (app *App) assess(record *Case, text string) {
 		return
 	}
 	if intent != "refund_progress" {
-		record.routeTo("clarify_or_human", "诉求不明确，先澄清")
-		record.State = "clarify"
-		record.Decision = "未识别到本期支持的售后请求"
-		record.say("assistant", "这次体验只处理铁路退款进度和追踪请求。你是想查退款进度、了解演示政策，还是请人工接手？我不会把无关提问当成订单查询。")
+		app.clarify(record, "诉求不明确，先澄清", "未识别到本期支持的售后请求", "这次体验只处理铁路退款进度和追踪请求。你是想查退款进度、了解演示政策，还是请人工接手？我不会把无关提问当成订单查询。")
 		return
 	}
 	if readOnlyRequest(text) {
@@ -298,16 +317,15 @@ func (app *App) assess(record *Case, text string) {
 		record.OrderID = strings.ToUpper(mentioned)
 	}
 	if record.OrderID == "" {
-		record.routeTo("clarify_or_human", "缺少订单，先补充必要信息")
-		record.State = "clarify"
-		record.Decision = "缺少订单，未调用查询工具"
-		record.say("assistant", "请提供合成订单号，例如 DEMO-RAIL-001，或新建案件时选择演示订单。没有订单，我不会推定已退票或退款状态。")
+		app.clarify(record, "缺少订单，先补充必要信息", "缺少订单，未调用查询工具", "请提供合成订单号，例如 DEMO-RAIL-001，或新建案件时选择演示订单。没有订单，我不会推定已退票或退款状态。")
 		return
 	}
 	if !app.query(record) {
 		app.handoff(record, "订单查询无有效回执，需人工核验")
 		return
 	}
+	// 拿到可核验订单即视为取得进展，澄清轮次归零。
+	record.ClarifyCount = 0
 	if record.QueryOrder.Business != "rail" {
 		app.handoff(record, "当前流程仅限铁路，不跨酒店等业务复用")
 		return

@@ -121,6 +121,7 @@
   },
 
   "evidence_ttl_minutes": 5,
+  "clarify_max_turns": 2,
 
   "sla": {
     "enabled": true,

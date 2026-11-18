@@ -82,3 +82,12 @@ skills、用户本体和跨业务画像没有加入实现，本次只沉淀有�
 - 对更新后的完整代码再次运行 Go 全量回归，最新记录输出 ok ONpoint 9.279s。保留已有网络配置、连通性检查和用户设置文件；不把这些并行工作声明为本轮编写。
 - 截图：screenshots/jev-switch-final.jpg。详细实现与边界见 JEV开关与回退.md。后续历史章节保留当时版本的数量和行为，不作为当前现状。
 
+## 澄清安全阀与判定账本采用标记（2026-11-18）
+
+- 本轮只补两项演示边界内、可被测试判定的后端缺口，不新增任何自动业务动作权限，不改动裁决门槛。
+- **澄清安全阀**：案件连续达到规则上限（`clarify_max_turns`，默认 2 次）仍诉求不明或缺订单、无法取得进展时，转人工交接；一旦识别到已知意图或拿到可核验订单，计数清零。只加闸，不推断订单或退款事实。新增 `TestClarifyEscalatesAfterRepeatedNonProgress`、`TestClarifyCountResetsOnceProgressMade`。
+- **判定账本采用标记**：观测记录补 `adopted`（过线判定点清单）与 `consumed`（本次业务裁决是否采用模型结论）。影子模式、规则回退、未就绪一律 `consumed=false`；仅辅助模式且模型结论进入分流才记 `true`。旧账本记录反序列化缺字段为零值，向后兼容。新增 `TestJudgeLedgerMarksAdoptionAndConsumption`。
+- `go vet ./...` 干净；本轮新增 3 个 Go 测试通过；既有 Go 回归在本机跑通（工作区 Go 测试函数共 76 个）；前端 CJS 测试 20 项通过、0 失败。
+- 遗留观察项（非本轮改动引入，列入下一轮测试卫生清理）：① `TestJEVHTTPSProxyTunnelForModelsAndJudgment` 在本机网络/代理环境下偶发 `network_error`（代理隧道握手未稳定）；② 个别测试在 `repository.close()` 后，既有后台 goroutine 仍触发一次写库，日志出现 `sql: database is closed`，不影响断言结果。两者都应在不改变业务语义的前提下收敛到生命周期守卫。
+- 本轮未公开部署、未接入真实在线模型、未录入商业密钥；全部订单与案件仍为合成沙箱数据，不代表真实退款、工单或到账结果。
+

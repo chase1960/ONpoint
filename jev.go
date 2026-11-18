@@ -166,6 +166,11 @@ type JEVObservation struct {
 	LatencyMS                                   int64
 	Answers                                     map[string]JEVAnswer
 	InputTokens, OutputTokens                   int
+	// Adopted 列出本次过线（达到各自阈值）的判定点；Consumed 表示这条观测最终是否被
+	// 业务裁决采用。账本由此能区分「调用发生过」与「业务真的采用了」，而不只是证明打过电话。
+	Adopted []string `json:"adopted,omitempty"`
+	// Consumed 只在 assist 且模型结论进入分流时为 true；shadow / 回退规则一律为 false。
+	Consumed bool `json:"consumed,omitempty"`
 }
 
 type JEVAnswer struct {
@@ -416,6 +421,7 @@ func (client *JEVClient) Judge(text string) (observation JEVObservation) {
 	observation.Model = result.Model
 	observation.InputTokens, observation.OutputTokens = *result.Usage.InputTokens, *result.Usage.OutputTokens
 	observation.Status = "ok"
+	observation.Adopted = observation.adoptedPoints()
 	return observation
 }
 
@@ -476,6 +482,17 @@ func (observation JEVObservation) adopted(id string) bool {
 		return false
 	}
 	return answer.Confidence >= jevQuestionSpecs[id].Threshold
+}
+
+// adoptedPoints 返回本次过线（达到各自阈值）的判定点 ID，供账本记录与审计展示。
+func (observation JEVObservation) adoptedPoints() []string {
+	var adopted []string
+	for _, id := range jevQuestionOrder {
+		if observation.adopted(id) {
+			adopted = append(adopted, id)
+		}
+	}
+	return adopted
 }
 
 // adoptedCount 用于展示：八题里真被当成事实的有几题。

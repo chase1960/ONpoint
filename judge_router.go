@@ -174,8 +174,15 @@ func decideIntake(text, mode, reason string, observation *JEVObservation) Intake
 }
 
 func (app *App) useJudgment(record *Case, text string, pending *preparedJudge) {
+	decision := decideIntake(text, app.judge.Status().Mode, pending.reason, pending.observation)
 	if pending.observation != nil {
 		app.labelJudgment(pending.observation, text)
+		if pending.observation.Status == "ok" {
+			pending.observation.Adopted = pending.observation.adoptedPoints()
+		}
+		// Consumed 只在模型结论真正进入分流时为 true；影子、回退规则、未就绪都记 false。
+		// 账本由此能区分「调用发生过」与「业务采用了」，而不只是证明打过电话。
+		pending.observation.Consumed = decision.Source == "jev"
 		record.Judgments = append(record.Judgments, *pending.observation)
 		record.event("judge_observed", "JEV "+pending.mode+"："+pending.observation.Status+"；原始结果与实际采用的判断分开记录")
 		// 落判定账本：只追加，不随会话重置。写失败不阻断裁决，但会记一条事件。
@@ -185,7 +192,6 @@ func (app *App) useJudgment(record *Case, text string, pending *preparedJudge) {
 			}
 		}
 	}
-	decision := decideIntake(text, app.judge.Status().Mode, pending.reason, pending.observation)
 	record.Intake = &decision
 	record.event("intake_decided", decision.Source+" / "+decision.Intent+" / "+decision.Reason)
 }

@@ -69,10 +69,13 @@ type RuleSet struct {
 	} `json:"special_intents"`
 	Eligibility        EligibilityRule
 	Safety             SafetyRule
-	EvidenceTTLMinutes int      `json:"evidence_ttl_minutes"`
-	SLA                SLARule  `json:"sla"`
-	WorkflowSteps      []string `json:"workflow_steps"`
-	StopConditions     []string `json:"stop_conditions"`
+	EvidenceTTLMinutes int `json:"evidence_ttl_minutes"`
+	// ClarifyMaxTurns 是澄清安全阀：同一案件连续多少次仍无法取得可推进的信息
+	// （诉求不明或缺订单）后转人工。只加闸：不会因此自动办理任何业务动作。
+	ClarifyMaxTurns  int      `json:"clarify_max_turns"`
+	SLA              SLARule  `json:"sla"`
+	WorkflowSteps    []string `json:"workflow_steps"`
+	StopConditions   []string `json:"stop_conditions"`
 }
 
 // loadRules 读规则文件并做严格校验。校验失败直接返回错误，由 main 终止启动。
@@ -146,6 +149,13 @@ func (rules *RuleSet) validate() error {
 	}
 	if rules.EvidenceTTLMinutes <= 0 {
 		return errors.New("evidence_ttl_minutes 必须为正")
+	}
+	// 缺省给安全默认 2 次；显式填写时必须落在 1..10，既不放任无限澄清，也不在第一步就转人工。
+	if rules.ClarifyMaxTurns == 0 {
+		rules.ClarifyMaxTurns = 2
+	}
+	if rules.ClarifyMaxTurns < 1 || rules.ClarifyMaxTurns > 10 {
+		return errors.New("clarify_max_turns 必须在 1 到 10 之间")
 	}
 	if err := rules.SLA.validate(); err != nil {
 		return err
@@ -311,6 +321,7 @@ var activeRules = &RuleSet{
 	Eligibility:        EligibilityRule{Business: "rail", Channel: "sandbox", Ticket: "SUCCESS", Payment: "PROCESSING", Reason: "只适用于铁路退票成功、支付处理中、沙箱渠道"},
 	Safety:             SafetyRule{Enabled: true, CrisisWords: []string{"不想活", "自杀", "伤害自己", "同归于尽", "轻生"}, HazardWords: []string{"起火", "冒烟", "燃烧", "爆炸", "漏电", "伤人", "受伤流血"}, CrisisReason: "人身安全表达，立即转人工，不由自动流程继续", HazardReason: "疑似安全事件描述，立即转人工，不由自动流程继续"},
 	EvidenceTTLMinutes: 5,
+	ClarifyMaxTurns:    2,
 }
 
 // applyRules 换上规则文件的内容，并同步进程内的步骤与禁用条件。

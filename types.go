@@ -58,6 +58,9 @@ type Case struct {
 	Intake                                                                                  *IntakeDecision
 	Route                                                                                   string
 	TrackingRequested, HumanRequested                                                       bool
+	// ClarifyCount 记录连续多少次仍停在澄清态（诉求不明或缺订单）；达到规则上限转人工。
+	// 取得任何进展（识别到已知意图、拿到可查询订单、进入方案/答复/交接）即清零。
+	ClarifyCount                                                                            int
 	Owner                                                                                   string
 	ID, State, Snapshot, OrderID, Intent, Risk, Receipt, Selected, Updated, Decision, Fault string
 	RulesHash                                                                               string
